@@ -85,7 +85,9 @@ A mocked browser test passed for one-click creation and archiving across multipl
 
 ## Phase 4 organization and recovery
 
-A mocked browser test passed for nested albums, bulk album and tag changes, favorites, tag filtering, duplicate warnings, checking missing files, rejecting another account’s backup, and restoring a linked subgroup and its organization in a fresh browser profile. Live recovery verification is pending.
+A mocked browser test passed for nested albums, bulk album and tag changes, favorites, tag filtering, duplicate warnings, checking missing files, rejecting another account’s backup, and restoring a linked subgroup and its organization in a fresh browser profile.
+
+**Live recovery passed.** The project owner exported the organization backup, opened a fresh private browser window, and restored it after signing in with the same Telegram account. The subgroup returned, and the test file retained its album assignment, tag, and favorite status. Restoring the same backup again added no duplicate albums or records.
 
 1. Create a child album under an existing album. In the connected workspace, use **Select files** to apply the album, a favorite, and tags to two files. Verify filters find those files.
 2. Stage an upload with the same name and size as a loaded file in the selected chat. Verify the possible-duplicate prompt appears. Dismiss the upload after checking the prompt.
