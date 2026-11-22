@@ -4,6 +4,10 @@ export type TelegramEnvironment = 'test' | 'production'
 
 export class TelegramError extends Error {}
 
+export function isExpiredTelegramSession(error: unknown) {
+  return tl.RpcError.is(error) && (error.code === 401 || ['AUTH_KEY_DUPLICATED', 'SESSION_REVOKED', 'AUTH_KEY_UNREGISTERED', 'SESSION_EXPIRED'].includes(error.text))
+}
+
 function normalizePhone(input: string) {
   const phone = input.trim().replace(/[\s().-]/g, '')
   if (!/^\+[1-9]\d{1,14}$/.test(phone)) {
@@ -110,6 +114,12 @@ export function createConnection(environment: TelegramEnvironment, apiId: number
     get accountId() {
       if (accountId === undefined) throw new TelegramError('Sign in to your Telegram account first.')
       return accountId
+    },
+
+    async resume(session: string) {
+      await client.importSession(session)
+      const user = await client.getMe()
+      accountId = user.id
     },
 
     async reconnect() {

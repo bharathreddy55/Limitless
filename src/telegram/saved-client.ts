@@ -1,5 +1,6 @@
 import { InputMedia, Long, Photo, RawDocument, networkMiddlewares, tl, type Chat, type FileLocation, type Message } from '@mtcute/web'
 import { createConnection, TelegramError } from './connection'
+import { androidDevice, isAndroidApp } from '../android-device'
 import type { RemoteDisplayFile } from '../library'
 import type { TelegramChatAddress } from '../storage'
 
@@ -57,7 +58,14 @@ function savedFile(accountId: number, message: Message, source: TelegramChatAddr
   }
 }
 
-export async function createSavedSession() {
+async function appTelegramConfig(): Promise<{ apiId: number; apiHash: string }> {
+  if (isAndroidApp) {
+    try {
+      return await androidDevice.readConfig()
+    } catch {
+      throw new TelegramError('Android could not load the Telegram setup. Choose the setup file again.')
+    }
+  }
   const response = await fetch('/__limitless/telegram-config', {
     cache: 'no-store',
     signal: AbortSignal.timeout(5000),
@@ -65,7 +73,11 @@ export async function createSavedSession() {
   if (!response.ok || !response.headers.get('content-type')?.startsWith('application/json')) {
     throw new TelegramError('Telegram sign-in needs to be configured on this Limitless server.')
   }
-  const { apiId, apiHash }: { apiId: number; apiHash: string } = await response.json()
+  return response.json()
+}
+
+export async function createSavedSession() {
+  const { apiId, apiHash } = await appTelegramConfig()
   const connection = createConnection('production', apiId, apiHash, {
     middlewares: [
       (ctx, next) => next({ ...ctx, params: {
@@ -130,6 +142,8 @@ export async function createSavedSession() {
     get accountId() { return connection.accountId },
     close: connection.close,
     reconnect: connection.reconnect,
+    resume: connection.resume,
+    exportSession: () => client.exportSession(),
 
     async createSubgroup(title: string, id: string) {
       const chat = await client.createSupergroup({ title, description: groupDescription(id) })

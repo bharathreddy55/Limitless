@@ -42,6 +42,9 @@ function localTelegramConfig(env: Record<string, string>): Plugin {
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), localTelegramConfig(loadEnv(mode, process.cwd(), 'LIMITLESS_TELEGRAM_'))],
+  server: {
+    fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.qa.local/**'] },
+  },
   optimizeDeps: {
     entries: ['index.html', 'telegram-lab.html', 'telegram-pilot.html'],
     exclude: ['@mtcute/wasm'],

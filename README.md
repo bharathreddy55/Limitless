@@ -17,6 +17,14 @@ See the [phased project plan](PROJECT_PLAN.md) for Telegram integration, Android
 
 The local development server provides a [Telegram test lab](TELEGRAM_TEST.md) and a [one-file production pilot](TELEGRAM_TEST.md#run-the-production-account-pilot) for Phase 2.
 
+### Run the Android app
+
+Use Android Studio with SDK 36 and Java 21. From the project root, run `npm run android:sync`. Build the debug APK from the `android` directory with `.\gradlew.bat :app:assembleDebug` on Windows, or open that directory in Android Studio and build the `app` module. The output is `android/app/build/outputs/apk/debug/app-debug.apk` for `app.limitless.mobile`.
+
+Run `npm run android:setup-file` to generate the private setup file from your local Telegram configuration. Transfer the APK and setup file to your phone. Install Limitless, choose the setup file once, and sign in with your phone number and code. The setup file contains the app's Telegram API credentials and should be transferred privately. The Android app encrypts its saved session with Android Keystore and offers **Resume saved sign-in** when relaunched.
+
+Pick files with the Android file picker. After downloading a file inside Limitless, use **Save to Downloads** or **Share**. Android 10 and later save to `Downloads/Limitless`. Android 7–9 ask you to choose a save location. To transfer existing subgroup links and organization from the web app, restore your organization backup on Android with the same Telegram account. See the [Android device checklist](TELEGRAM_TEST.md#phase-5-android-app).
+
 ### Use Saved Messages in Limitless
 
 For a local checkout, configure the Telegram application once in an untracked `.env.local` file in the project root. Set `LIMITLESS_TELEGRAM_API_ID` and `LIMITLESS_TELEGRAM_API_HASH` using [Telegram API development tools](https://my.telegram.org/apps), then start or restart the local server. The server provides the configuration to its local browser for the direct Telegram connection. A static deployment needs its own sign-in configuration.

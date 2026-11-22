@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Download, FileImage, FolderInput } from 'lucide-react'
-import { FileBadge, Modal, useObjectUrl } from '../components'
+import { DeviceFileActions, FileBadge, Modal, useObjectUrl } from '../components'
+import { isAndroidApp } from '../android-device'
 import { displaySize, fileKind, folderPaths, formatDate, type Folder } from '../library'
 import { describeFailure } from './connection'
 import { downloadLimit, previewLimit, type SavedFile, type SavedSession } from './saved-client'
@@ -110,7 +111,8 @@ export function SavedDetails({ file, session, folders, sourceName, onMove, onTag
         {file.source && <a className="button" href={`https://t.me/c/${file.source.channelId}/${file.messageId}`}
           target="_blank" rel="noreferrer">Open in Telegram</a>}
         {previewable && !preview && <button className="button" disabled={active || (file.bytes ?? 0) > previewLimit} onClick={() => void getFile(true)}>Preview</button>}
-        {url ? <a className="button primary" href={url} download={file.name}><Download size={17} /> Save file</a>
+        {isAndroidApp && blob ? <DeviceFileActions content={blob} name={file.name} />
+          : url ? <a className="button primary" href={url} download={file.name}><Download size={17} /> Save file</a>
           : <button className="button primary" disabled={active || (file.bytes ?? 0) > downloadLimit} onClick={() => void getFile(false)}><Download size={17} /> Download</button>}
       </div>
       {(file.bytes ?? 0) > downloadLimit && <p className="file-meta">This file is larger than 100 MiB. Download it in Telegram.</p>}

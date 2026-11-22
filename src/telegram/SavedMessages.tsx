@@ -1,11 +1,12 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import parsePhoneNumber, { getCountries, getCountryCallingCode, type CountryCode } from 'libphonenumber-js/min'
 import { ArrowLeft, FileUp, Images, RefreshCw, Send } from 'lucide-react'
 import { FileList, MediaGallery } from '../Gallery'
+import { androidDevice, exportAndroidFile, importAndroidSetup, isAndroidApp, type AndroidStatus } from '../android-device'
 import { folderPaths, formatSize, isMedia, type Folder } from '../library'
 import { addTelegramSubgroup, readTelegramIndex, readTelegramMetadata, readTelegramSubgroups, restoreTelegramIndex, telegramMessageLocation,
   updateTelegramMetadata, type TelegramIndexData, type TelegramMetadata, type TelegramSubgroup } from '../storage'
-import { describeFailure, TelegramError } from './connection'
+import { describeFailure, isExpiredTelegramSession, TelegramError } from './connection'
 import { createSavedSession, isDuplicateUpload, newUploadId, type HistoryOffset, type SavedFile, type SavedSession, type UploadId } from './saved-client'
 import { SavedDetails, SavedThumbnail } from './SavedDetails'
 import { BatchActions, IndexBackup } from './SavedOrganization'
@@ -49,6 +50,7 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
   const sendAbort = useRef<AbortController | null>(null)
   const picker = useRef<HTMLInputElement>(null)
   const [connected, setConnected] = useState(false)
+  const [device, setDevice] = useState<AndroidStatus>()
   const [country, setCountry] = useState<CountryCode>('IN')
   const [challenge, setChallenge] = useState<Challenge>()
   const [files, setFiles] = useState<SavedFile[]>([])
@@ -71,6 +73,19 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
   const sourcePeer = source?.state === 'archived' ? source.peer : null
   const sourceDescription = source?.state === 'archived' ? source.title : 'your Telegram account'
   const defaultFolderId = source?.albumId ?? null
+
+  useEffect(() => {
+    if (!isAndroidApp) return
+    let active = true
+    void androidDevice.status().then((status) => {
+      if (active) setDevice(status)
+    }).catch(() => {
+      if (!active) return
+      setDevice({ configured: false, savedSession: false })
+      setError('Android could not read the local setup.')
+    })
+    return () => { active = false }
+  }, [])
 
   async function run(label: string, fallback: string, work: () => Promise<void>) {
     if (pending.current) return
@@ -99,6 +114,14 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
   async function onAuthorized(client: SavedSession) {
     setChallenge(undefined)
     setConnected(true)
+    if (isAndroidApp) {
+      try {
+        await androidDevice.saveSession({ session: await client.exportSession() })
+        setDevice({ configured: true, savedSession: true })
+      } catch {
+        setError('Signed in. Android could not save this sign-in for the next launch.')
+      }
+    }
     await Promise.all([
       refresh(client),
       readTelegramSubgroups(client.accountId).then(setGroups),
@@ -108,7 +131,7 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
 
   function requestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (pending.current || session.current) return
+    if (pending.current || session.current || (isAndroidApp && (!device?.configured || device.savedSession))) return
     const number = String(new FormData(event.currentTarget).get('phone') ?? '')
     void run('Requesting a Telegram sign-in code…', 'Could not request the sign-in code.', async () => {
       const phone = parsePhoneNumber(number, { defaultCountry: country, extract: false })
@@ -128,6 +151,50 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
         await client.close(false).catch(() => {})
         throw reason
       }
+      await onAuthorized(client)
+    })
+  }
+
+  function configureDevice(file: File) {
+    void run('Reading Android setup…', 'Could not import the Android setup file.', async () => {
+      try {
+        await importAndroidSetup(file)
+      } catch (error) {
+        throw new TelegramError(error instanceof Error ? error.message : 'Could not import the Android setup file.')
+      }
+      setDevice({ configured: true, savedSession: false })
+      setNotice('Android setup saved. Enter your phone number to sign in.')
+    })
+  }
+
+  function forgetSavedSession() {
+    void run('Removing the saved sign-in…', 'Android could not remove the saved sign-in.', async () => {
+      await androidDevice.clearSession()
+      setDevice({ configured: true, savedSession: false })
+      setNotice('The saved sign-in was removed from this device.')
+    })
+  }
+
+  function resumeSavedSession() {
+    void run('Resuming Telegram sign-in…', 'Could not resume sign-in. Check your connection and try again.', async () => {
+      const { session: savedSession } = await androidDevice.readSession()
+      if (!savedSession) {
+        setDevice({ configured: true, savedSession: false })
+        throw new TelegramError('The saved sign-in is unavailable. Sign in with your phone number.')
+      }
+      const client = await createSavedSession()
+      try {
+        await client.resume(savedSession)
+      } catch (error) {
+        await client.close(false).catch(() => {})
+        if (isExpiredTelegramSession(error)) {
+          await androidDevice.clearSession()
+          setDevice({ configured: true, savedSession: false })
+          throw new TelegramError('The saved Telegram session expired. Sign in with your phone number.')
+        }
+        throw error
+      }
+      session.current = client
       await onAuthorized(client)
     })
   }
@@ -170,6 +237,15 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
     setFilter('all')
     setTagFilter('')
     void run(wasConnected ? 'Signing out…' : 'Closing sign-in…', 'The local session was cleared. Telegram did not confirm sign-out.', async () => {
+      if (isAndroidApp && wasConnected) {
+        try {
+          await androidDevice.clearSession()
+        } catch {
+          await client.close(true).catch(() => {})
+          throw new TelegramError('Android could not clear its saved sign-in. Use Forget saved sign-in to retry.')
+        }
+        setDevice({ configured: true, savedSession: false })
+      }
       await client.close(wasConnected)
       if (wasConnected) setNotice('Telegram confirmed sign-out. The local session was cleared.')
     })
@@ -266,10 +342,16 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
     if (!client) return
     void run('Preparing backup…', 'Could not export this backup.', async () => {
       const data = await readTelegramIndex(client.accountId)
-      const url = URL.createObjectURL(createIndexBackup(client.accountId, data))
+      const backup = createIndexBackup(client.accountId, data)
+      const name = `limitless-index-${new Date().toISOString().slice(0, 10)}.json`
+      if (isAndroidApp) {
+        setNotice(await exportAndroidFile(backup, name, 'save'))
+        return
+      }
+      const url = URL.createObjectURL(backup)
       const link = document.createElement('a')
       link.href = url
-      link.download = `limitless-index-${new Date().toISOString().slice(0, 10)}.json`
+      link.download = name
       document.body.append(link)
       link.click()
       link.remove()
@@ -420,7 +502,25 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
         : <label>Two-step verification password<input name="answer" type="password" autoComplete="off" required /></label>}
       <div className="saved-actions"><button className="button primary" disabled={Boolean(busy)}>Verify and sign in</button>
         <button className="button" type="button" onClick={signOut} disabled={Boolean(busy)}>Start over</button></div>
-    </form> : <form className="saved-card saved-auth" method="post" onSubmit={requestCode}>
+    </form> : isAndroidApp && (!device?.configured || device.savedSession) ? <section className="saved-card saved-auth">
+      {!device ? <p role="status">Checking Android setup…</p> : device.configured && device.savedSession ? <>
+        <h2>Continue with your saved sign-in</h2>
+        <div className="saved-actions">
+          <button className="button primary" disabled={Boolean(busy)} onClick={resumeSavedSession}>Resume saved sign-in</button>
+          <button className="button" disabled={Boolean(busy)} onClick={forgetSavedSession}>Forget saved sign-in</button>
+        </div>
+      </> : <>
+        <h2>Set up Telegram on this phone</h2>
+        <p>Choose your Limitless Android setup file once. Then sign in with your phone number and Telegram code.</p>
+        <div className="saved-actions"><label className="button saved-file-input">Choose Android setup file
+          <input className="sr-only" type="file" accept="application/json,.json" disabled={Boolean(busy)} onChange={(event) => {
+            const file = event.currentTarget.files?.[0]
+            event.currentTarget.value = ''
+            if (file) configureDevice(file)
+          }} />
+        </label></div>
+      </>}
+    </section> : <form className="saved-card saved-auth" method="post" onSubmit={requestCode}>
       <h2>Continue with Telegram</h2>
       <p>Sign in once to open your Saved Messages and subgroup chats in Limitless.</p>
       <div className="saved-phone-fields">

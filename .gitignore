@@ -6,3 +6,5 @@ mobile-lab/
 .env
 .env.*
 *.log
+*.jks
+*.keystore

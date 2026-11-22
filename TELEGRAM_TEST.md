@@ -95,7 +95,19 @@ A mocked browser test passed for nested albums, bulk album and tag changes, favo
 4. Use **Check indexed files in this chat**. If an indexed attachment was already removed in Telegram, verify it is reported as unavailable and the organization record is kept.
 5. Try the backup while signed in with another Telegram account you control. The app should reject it before applying any changes.
 
-## Run the mobile test
+## Phase 5 Android app
+
+The debug APK uses package `app.limitless.mobile`. Use the [Android build instructions](README.md#run-the-android-app) to generate it and the separate private setup file. The real-device test of this app is pending.
+
+A local browser test with a simulated Android bridge passed for setup import, resuming a saved sign-in after reload, passing matching file bytes to the save and share actions, and clearing the session on sign-out. The native Android project compiled and assembled the debug APK.
+
+1. Install the APK, import the setup file with the Android file picker, and sign in to Telegram with a phone number and code. Confirm the Telegram workspace opens.
+2. Use **Choose file** to select a disposable file from Android Files. Upload to the intended chat. Download it in Limitless, choose **Save to Downloads**, and compare its SHA-256 with the original. Open **Share** and verify that the intended file can be read by the selected app.
+3. Close and reopen Limitless. Choose **Resume saved sign-in** and verify the same library opens. Interrupt a disposable transfer and retry it. Check that it appears once in Telegram.
+4. Export an organization backup to Downloads, then choose that file in Limitless and verify the restore preview. Sign out, reopen Limitless, and confirm the app asks for the phone number and code again.
+5. Check the sign-in and file actions with TalkBack. Install an updated APK while keeping the app data and confirm the organization and saved sign-in are available.
+
+## Run the Phase 2 mobile test lab
 
 Build the dedicated test bundle from the repo. It uses the same lab as desktop and keeps its sessions in memory. Capacitor loads the bundle from its local app origin, and the lab checks for a secure cryptography context before showing credential fields. The regular web build stays separate.
 

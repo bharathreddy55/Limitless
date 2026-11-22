@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Archive, ChevronLeft, ChevronRight, Download, File, FileImage, FileSpreadsheet, FileText, Film, FolderInput, Heart, Moon, Sun, Monitor, Trash2, X } from 'lucide-react'
+import { exportAndroidFile, isAndroidApp } from './android-device'
 import { fileKind, folderPaths, formatDate, formatSize, type DisplayFile, type Folder, type LibraryFile, type Theme } from './library'
 
 const fileIcons = { image: FileImage, video: Film, pdf: FileText, sheet: FileSpreadsheet, text: FileText, other: File }
@@ -19,6 +20,32 @@ export function FileBadge({ file }: { file: DisplayFile }) {
   const kind = fileKind(file)
   const Icon = fileIcons[kind]
   return <span className={`file-badge ${kind}`}><Icon size={19} aria-hidden="true" /></span>
+}
+
+export function DeviceFileActions({ content, name, disabled = false }: { content: Blob; name: string; disabled?: boolean }) {
+  const [working, setWorking] = useState(false)
+  const [message, setMessage] = useState('')
+  const [failed, setFailed] = useState(false)
+
+  async function exportFile(action: 'save' | 'share') {
+    setWorking(true)
+    setMessage('')
+    setFailed(false)
+    try {
+      setMessage(await exportAndroidFile(content, name, action))
+    } catch (error) {
+      setFailed(true)
+      setMessage(error instanceof Error ? error.message : 'Could not export this file on Android.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return <>
+    <button className="button primary" disabled={disabled || working} onClick={() => void exportFile('save')}><Download size={17} /> Save to Downloads</button>
+    <button className="button" disabled={disabled || working} onClick={() => void exportFile('share')}>Share</button>
+    {(working || message) && <p className={failed ? 'error' : 'file-meta'} role={failed ? 'alert' : 'status'}>{working ? 'Preparing file…' : message}</p>}
+  </>
 }
 
 export function Modal({ title, children, onClose, wide = false, media = false, onKeyDown }: {
@@ -181,7 +208,8 @@ export function FileDetails({ file, folders, onMove, onRemove, onClose, onFavori
               <button className="button quiet" onClick={() => setConfirm(true)} disabled={busy}><Trash2 size={17} /> Remove</button>
               <button className={file.favorite ? 'button is-favorite' : 'button'} onClick={onFavorite}
                 aria-pressed={file.favorite} disabled={busy}><Heart size={17} /> Favorite</button>
-              {url && <a className="button primary" href={url} download={file.name}><Download size={17} /> Download</a>}
+              {isAndroidApp ? <DeviceFileActions key={file.id} content={file.content} name={file.name} disabled={busy} />
+                : url && <a className="button primary" href={url} download={file.name}><Download size={17} /> Download</a>}
             </>
           )}
         </div>
