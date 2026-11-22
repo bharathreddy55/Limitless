@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Film, Folder, Heart, ImageOff } from 'lucide-react'
 import { FileBadge, useObjectUrl } from './components'
-import { displaySize, fileKind, formatDate, type DisplayFile, type Folder as LibraryFolder, type LibraryFile } from './library'
+import { displaySize, fileKind, folderPaths, formatDate, type DisplayFile, type Folder as LibraryFolder, type LibraryFile } from './library'
 
 function PhotoThumbnail({ file }: { file: LibraryFile }) {
   const url = useObjectUrl(file.content)
@@ -18,13 +18,14 @@ function dayStart(time: number) {
 
 const groupDate = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
 
-export function MediaGallery<T extends DisplayFile>({ files, onOpen, onFavorite, renderThumbnail, busy, flat = false }: {
+export function MediaGallery<T extends DisplayFile>({ files, onOpen, onFavorite, renderThumbnail, busy, flat = false, selection }: {
   files: T[]
   onOpen: (file: T) => void
   onFavorite: (file: T) => void
   renderThumbnail?: (file: T) => ReactNode
   busy: boolean
   flat?: boolean
+  selection?: ReadonlySet<string>
 }) {
   const groups = new Map<number, T[]>()
   for (const file of files) {
@@ -49,16 +50,18 @@ export function MediaGallery<T extends DisplayFile>({ files, onOpen, onFavorite,
           {group.map((file) => {
             const isVideo = fileKind(file) === 'video'
             return <article className={`media-tile${isVideo ? ' video-tile' : ''}`} key={file.id}>
-              <button className="media-open" onClick={() => onOpen(file)} aria-label={`Open ${file.name}`} title={file.name}>
+              <button className="media-open" onClick={() => onOpen(file)} aria-label={`${selection ? 'Select' : 'Open'} ${file.name}`}
+                aria-pressed={selection?.has(file.id)} disabled={Boolean(selection) && busy} title={file.name}>
                 {renderThumbnail ? renderThumbnail(file) : isVideo ? <Film size={32} aria-hidden="true" />
                   : 'content' in file ? <PhotoThumbnail file={file} /> : <ImageOff size={24} aria-hidden="true" />}
                 <span className="tile-name">{file.name}</span>
+                {selection && <span className="saved-selection-mark" aria-hidden="true">{selection.has(file.id) ? '✓' : '○'}</span>}
               </button>
-              <button className={`tile-favorite${file.favorite ? ' is-favorite' : ''}`}
+              {!selection && <button className={`tile-favorite${file.favorite ? ' is-favorite' : ''}`}
                 aria-label={`Favorite ${file.name}`} aria-pressed={file.favorite}
                 disabled={busy} onClick={() => onFavorite(file)}>
                 <Heart size={18} aria-hidden="true" />
-              </button>
+              </button>}
             </article>
           })}
         </div>
@@ -95,14 +98,15 @@ export function AlbumGrid({ folders, files, onOpen }: {
   </div>
 }
 
-export function FileList<T extends DisplayFile>({ files, folders, onOpen, onFavorite, busy }: {
+export function FileList<T extends DisplayFile>({ files, folders, onOpen, onFavorite, busy, selection }: {
   files: T[]
   folders: LibraryFolder[]
   onOpen: (file: T) => void
   onFavorite: (file: T) => void
   busy: boolean
+  selection?: ReadonlySet<string>
 }) {
-  const folderNames = new Map(folders.map((folder) => [folder.id, folder.name]))
+  const folderNames = folderPaths(folders)
   return <div className="file-list">
     <table>
       <thead><tr>
@@ -111,16 +115,18 @@ export function FileList<T extends DisplayFile>({ files, folders, onOpen, onFavo
         <th scope="col" className="col-action"><span className="sr-only">Favorites</span></th>
       </tr></thead>
       <tbody>{files.map((file) => <tr key={file.id}>
-        <td><button className="file-title" onClick={() => onOpen(file)}>
+        <td><button className="file-title" onClick={() => onOpen(file)} aria-label={selection ? `Select ${file.name}` : undefined}
+          aria-pressed={selection?.has(file.id)} disabled={Boolean(selection) && busy}>
+          {selection && <span aria-hidden="true">{selection.has(file.id) ? '✓' : '○'}</span>}
           <FileBadge file={file} />
           <span><strong>{file.name}</strong><small>{displaySize(file)}</small></span>
         </button></td>
         <td className="col-folder">{folderNames.get(file.folderId ?? '') ?? '—'}</td>
         <td className="col-date">{formatDate(file.addedAt)}</td>
         <td className="col-size">{displaySize(file)}</td>
-        <td className="col-action"><button className={file.favorite ? 'icon-button is-favorite' : 'icon-button'}
+        <td className="col-action">{!selection && <button className={file.favorite ? 'icon-button is-favorite' : 'icon-button'}
           aria-label={`Favorite ${file.name}`} aria-pressed={file.favorite} disabled={busy}
-          onClick={() => onFavorite(file)}><Heart size={18} aria-hidden="true" /></button></td>
+          onClick={() => onFavorite(file)}><Heart size={18} aria-hidden="true" /></button>}</td>
       </tr>)}</tbody>
     </table>
   </div>

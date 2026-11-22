@@ -122,11 +122,11 @@ export function App() {
 
   function createFolder(name: string) {
     if (!library || !name) return
-    if (library.folders.some((folder) => fileNameOrder.compare(folder.name, name) === 0)) {
-      setError('An album with that name already exists.')
+    if (library.folders.some((folder) => (folder.parentId ?? null) === albumId && fileNameOrder.compare(folder.name, name) === 0)) {
+      setError('An album with that name already exists here.')
       return
     }
-    const folder = makeFolder(name, library.folders.length)
+    const folder = makeFolder(name, library.folders.length, albumId)
     void save(async () => {
       await addFolder(folder)
       setLibrary((current) => current && { ...current, folders: [...current.folders, folder] })
@@ -175,6 +175,8 @@ export function App() {
   const { files, folders } = library
   const term = search.trim().toLocaleLowerCase()
   const album = folders.find((folder) => folder.id === albumId)
+  const parent = folders.find((folder) => folder.id === album?.parentId)
+  const childAlbums = folders.filter((folder) => (folder.parentId ?? null) === albumId)
   const activeFile = dialog?.kind === 'file' ? files.find((file) => file.id === dialog.id) : undefined
   const albumIndex = !term && destination === 'albums' && !album
   const timelineView = !term && destination !== 'files'
@@ -205,7 +207,12 @@ export function App() {
     <>
     <div hidden={!showTelegram}>
       <Suspense fallback={<p className="loading" role="status">Opening Limitless…</p>}>
-        <SavedMessages folders={folders} onBack={() => setShowTelegram(false)} />
+        <SavedMessages folders={folders} onBack={() => setShowTelegram(false)} onFoldersRestored={(added) => {
+          setLibrary((current) => current && {
+            ...current,
+            folders: [...new Map([...current.folders, ...added].map((folder) => [folder.id, folder])).values()],
+          })
+        }} />
       </Suspense>
     </div>
     <div hidden={showTelegram}>
@@ -265,13 +272,14 @@ export function App() {
         </div>
       </aside>
       <main className="main">
-        {album && !term && <button className="back-link" onClick={() => navigate('albums')}><ArrowLeft size={16} /> All albums</button>}
+        {album && !term && <button className="back-link" onClick={() => navigate('albums', parent?.id ?? null)}><ArrowLeft size={16} /> {parent?.name ?? 'All albums'}</button>}
         <div className="page-head">
           <div>
             <h1>{title}</h1>
-            <p>{albumIndex ? countLabel(folders.length, 'album') : countLabel(visibleFiles.length, destination === 'gallery' && !term ? 'item' : 'file')}</p>
+            <p>{albumIndex ? countLabel(childAlbums.length, 'album') : countLabel(visibleFiles.length, destination === 'gallery' && !term ? 'item' : 'file')}</p>
           </div>
           {albumIndex && <button className="button" onClick={() => showDialog({ kind: 'folder' })}><Plus size={18} /> New album</button>}
+          {album && !term && <button className="button" onClick={() => showDialog({ kind: 'folder' })}><Plus size={18} /> New child album</button>}
           {!timelineView && <div className="sort-control">
             <select aria-label="Sort files" value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
               {sortOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
@@ -283,7 +291,8 @@ export function App() {
         {!dialog && error && <p role="alert" className="error banner">{error}</p>}
         <p role="status" className={feedback ? 'feedback' : 'sr-only'}>{feedback}</p>
 
-        {albumIndex ? <AlbumGrid folders={folders} files={files} onOpen={(folder) => navigate('albums', folder.id)} /> : visibleFiles.length ? <>
+        {childAlbums.length > 0 && !term && destination === 'albums' && <AlbumGrid folders={childAlbums} files={files} onOpen={(folder) => navigate('albums', folder.id)} />}
+        {!albumIndex && (visibleFiles.length ? <>
           {media.length > 0 && <MediaGallery files={media} flat={Boolean(term) || destination === 'favorites'} busy={busy} onOpen={openFile} onFavorite={favorite} />}
           {documents.length > 0 && <section className="documents">
             {media.length > 0 && <h2>Other files</h2>}
@@ -292,16 +301,16 @@ export function App() {
         </> : (
           <div className="empty">
             <span className="empty-icon">{term ? <Search size={27} /> : destination === 'favorites' ? <Heart size={27} /> : <Image size={27} />}</span>
-            <h2>{term ? 'No matching files' : destination === 'favorites' ? 'No favorites yet' : album ? 'This album is empty' : destination === 'gallery' ? 'Your gallery is empty' : 'No files yet'}</h2>
+            <h2>{term ? 'No matching files' : destination === 'favorites' ? 'No favorites yet' : album ? 'No files in this album' : destination === 'gallery' ? 'Your gallery is empty' : 'No files yet'}</h2>
             <p>{term ? 'Try a different filename.' : destination === 'favorites' ? 'Tap the heart on a file to keep it here.' : 'Drop files here or import them from your device.'}</p>
             {term ? <button className="button" onClick={() => setSearch('')}>Clear search</button>
               : destination !== 'favorites' && <button className="button primary" disabled={busy} onClick={() => fileInput.current?.click()}>Import files</button>}
           </div>
-        )}
+        ))}
       </main>
 
       {dragging && <div className="drop-overlay"><div><Upload size={32} /><strong>Drop files to import</strong><span>{album ? `Add to ${album.name}` : 'Add to your library'}</span></div></div>}
-      {dialog?.kind === 'folder' && <FolderForm busy={busy} error={error} onCreate={createFolder} onClose={closeDialog} />}
+      {dialog?.kind === 'folder' && <FolderForm parentName={album?.name} busy={busy} error={error} onCreate={createFolder} onClose={closeDialog} />}
       {dialog?.kind === 'settings' && <Settings theme={theme} onTheme={changeTheme} onClose={closeDialog} busy={busy} error={error} />}
       {activeFile && <FileDetails key={activeFile.id} file={activeFile} folders={folders} busy={busy} error={error} onClose={closeDialog}
         onMove={(folderId) => updateFile({ ...activeFile, folderId })} onRemove={() => deleteFile(activeFile)}

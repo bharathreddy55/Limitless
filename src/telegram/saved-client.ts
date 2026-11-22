@@ -160,6 +160,20 @@ export async function createSavedSession() {
       return { files, next: page.length === PAGE_SIZE ? page.next : undefined }
     },
 
+    async missingIndexedFiles(ids: number[], source: TelegramChatAddress | null) {
+      if (!ids.length) return 0
+      const peer = await inputPeer(source)
+      const account = connection.accountId
+      let missing = 0
+      for (let start = 0; start < ids.length; start += 100) {
+        const requested = ids.slice(start, start + 100)
+        const messages = await client.getMessages(peer, requested)
+        const found = new Set(messages.flatMap((message) => message && savedFile(account, message, source) ? [message.id] : []))
+        missing += requested.filter((id) => !found.has(id)).length
+      }
+      return missing
+    },
+
     async upload(file: File, id: UploadId, signal: AbortSignal, onProgress: (sent: number, total: number) => void, source: TelegramChatAddress | null = null) {
       const account = connection.accountId
       const message = await client.sendMedia(await inputPeer(source), InputMedia.document(file, {

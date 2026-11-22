@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Archive, ChevronLeft, ChevronRight, Download, File, FileImage, FileSpreadsheet, FileText, Film, FolderInput, Heart, Moon, Sun, Monitor, Trash2, X } from 'lucide-react'
-import { fileKind, formatDate, formatSize, type DisplayFile, type Folder, type LibraryFile, type Theme } from './library'
+import { fileKind, folderPaths, formatDate, formatSize, type DisplayFile, type Folder, type LibraryFile, type Theme } from './library'
 
 const fileIcons = { image: FileImage, video: Film, pdf: FileText, sheet: FileSpreadsheet, text: FileText, other: File }
 
@@ -50,16 +50,17 @@ export function Modal({ title, children, onClose, wide = false, media = false, o
   )
 }
 
-export function FolderForm({ busy, error, onCreate, onClose }: {
+export function FolderForm({ busy, error, onCreate, onClose, parentName }: {
   busy: boolean
   error: string
   onCreate: (name: string) => void
   onClose: () => void
+  parentName?: string
 }) {
   const [name, setName] = useState('')
   const fieldId = useId()
   return (
-    <Modal title="New album" onClose={onClose}>
+    <Modal title={parentName ? `New album in ${parentName}` : 'New album'} onClose={onClose}>
       <form className="dialog-body" onSubmit={(event) => { event.preventDefault(); onCreate(name.trim()) }}>
         <label htmlFor={fieldId}>Album name</label>
         <input data-initial-focus id={fieldId} value={name} placeholder="e.g. Photos" maxLength={64}
@@ -163,7 +164,7 @@ export function FileDetails({ file, folders, onMove, onRemove, onClose, onFavori
             <label htmlFor={folderField}><FolderInput size={17} /> Album</label>
             <select id={folderField} value={file.folderId ?? ''} disabled={busy} onChange={(event) => onMove(event.target.value || null)}>
               <option value="">Unfiled</option>
-              {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+              {[...folderPaths(folders)].map(([id, path]) => <option key={id} value={id}>{path}</option>)}
             </select>
           </div>
         </div>

@@ -4,6 +4,7 @@ export interface Folder {
   id: string
   name: string
   color: 'mint' | 'blue' | 'peach'
+  parentId?: string | null
 }
 
 export interface LibraryFile {
@@ -35,8 +36,23 @@ export interface Library {
 
 const colorOptions: Folder['color'][] = ['mint', 'blue', 'peach']
 
-export function makeFolder(name: string, count: number): Folder {
-  return { id: crypto.randomUUID(), name, color: colorOptions[count % colorOptions.length] }
+export function makeFolder(name: string, count: number, parentId: string | null = null): Folder {
+  return { id: crypto.randomUUID(), name, color: colorOptions[count % colorOptions.length], parentId }
+}
+
+export function folderPaths(folders: Folder[]) {
+  const byId = new Map(folders.map((folder) => [folder.id, folder]))
+  return new Map(folders.map((folder) => {
+    const path = [folder.name]
+    const seen = new Set([folder.id])
+    let parent = byId.get(folder.parentId ?? '')
+    while (parent && !seen.has(parent.id)) {
+      seen.add(parent.id)
+      path.push(parent.name)
+      parent = byId.get(parent.parentId ?? '')
+    }
+    return [folder.id, path.reverse().join(' / ')]
+  }))
 }
 
 export function formatSize(bytes: number) {

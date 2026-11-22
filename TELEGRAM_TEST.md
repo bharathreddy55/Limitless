@@ -83,6 +83,16 @@ A mocked browser test passed for one-click creation and archiving across multipl
 4. Add or delete a disposable file in Telegram, then refresh the associated subgroup in Limitless. Sign out, sign back in to the same account, and confirm the subgroup opens again.
 5. If setup is interrupted, use **Set up chat**, **Find created chat**, or **Archive chat**, as shown. Verify recovery leaves one Telegram group per subgroup.
 
+## Phase 4 organization and recovery
+
+A mocked browser test passed for nested albums, bulk album and tag changes, favorites, tag filtering, duplicate warnings, checking missing files, rejecting another account’s backup, and restoring a linked subgroup and its organization in a fresh browser profile. Live recovery verification is pending.
+
+1. Create a child album under an existing album. In the connected workspace, use **Select files** to apply the album, a favorite, and tags to two files. Verify filters find those files.
+2. Stage an upload with the same name and size as a loaded file in the selected chat. Verify the possible-duplicate prompt appears. Dismiss the upload after checking the prompt.
+3. Export an **Organization backup**. Use a fresh browser profile at the same app address, sign in with the same Telegram account, and restore the backup. Confirm the nested album path, tags, favorites, and subgroup links are available. Importing the same file again should add no duplicate records.
+4. Use **Check indexed files in this chat**. If an indexed attachment was already removed in Telegram, verify it is reported as unavailable and the organization record is kept.
+5. Try the backup while signed in with another Telegram account you control. The app should reject it before applying any changes.
+
 ## Run the mobile test
 
 Build the dedicated test bundle from the repo. It uses the same lab as desktop and keeps its sessions in memory. Capacitor loads the bundle from its local app origin, and the lab checks for a secure cryptography context before showing credential fields. The regular web build stays separate.

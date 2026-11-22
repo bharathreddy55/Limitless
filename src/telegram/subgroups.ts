@@ -13,7 +13,7 @@ export async function setUpSubgroup(client: SavedSession, albumName: string, gro
   let title: string
   let peer: TelegramChatAddress | undefined
   if (group.state === 'draft') {
-    title = `${Array.from(albumName).slice(0, 60).join('')} · ${group.name}`
+    title = `${Array.from(albumName).slice(-60).join('')} · ${group.name}`
     const pending = { ...group, title, state: 'pending' } as const
     await update(client, group, pending)
     try {

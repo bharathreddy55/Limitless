@@ -18,6 +18,15 @@
 .saved-subgroup-list { list-style: none; padding: 0; margin: .9rem 0 0; }
 .saved-subgroup-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; border-top: 1px solid var(--line); padding: .65rem 0; overflow-wrap: anywhere; }
 .saved-tools.saved-source { justify-content: flex-start; }
+.saved-batch, .saved-backup-preview { display: grid; gap: .75rem; }
+.saved-backup-actions, .saved-inline-form { display: flex; align-items: end; flex-wrap: wrap; gap: .6rem; }
+.saved-backup-actions, .saved-backup-preview { margin-top: .8rem; }
+.saved-file-input { position: relative; cursor: pointer; }
+.saved-file-input:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.saved-file-input:has(input:disabled) { cursor: default; opacity: .55; }
+.saved-inline-form label { display: grid; gap: .35rem; min-width: 0; font-size: .88rem; }
+.saved-inline-form input, .saved-inline-form select { width: 100%; min-width: 0; padding: .63rem .7rem; border: 1px solid var(--line); border-radius: .65rem; color: var(--text); background: var(--page); }
+.saved-selection-mark { position: absolute; inset: .55rem auto auto .55rem; display: grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; color: var(--text); background: var(--surface); }
 .saved-transfer { display: flex; align-items: center; justify-content: space-between; gap: .85rem; flex-wrap: wrap; }
 .saved-transfer p { margin-top: .34rem; }
 .saved-progress { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }

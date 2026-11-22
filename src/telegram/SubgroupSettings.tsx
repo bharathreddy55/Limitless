@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import type { Folder } from '../library'
+import { folderPaths, type Folder } from '../library'
 import type { TelegramSubgroup } from '../storage'
 
 const stateText = {
@@ -18,6 +18,7 @@ export function SubgroupSettings({ folders, groups, disabled, onAdd, onRetry }: 
   onRetry: (folder: Folder, group: TelegramSubgroup) => void
 }) {
   const byId = new Map(folders.map((folder) => [folder.id, folder]))
+  const paths = folderPaths(folders)
 
   function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -33,7 +34,7 @@ export function SubgroupSettings({ folders, groups, disabled, onAdd, onRetry }: 
     <p>Adding a subgroup creates a private chat in your Telegram account and archives it automatically.</p>
     {folders.length ? <form className="saved-subgroup-form" onSubmit={add}>
       <label>Parent album<select name="album" required disabled={disabled}>
-        {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+        {[...paths].map(([id, path]) => <option key={id} value={id}>{path}</option>)}
       </select></label>
       <label>Subgroup name<input name="name" maxLength={60} required disabled={disabled} /></label>
       <button className="button" disabled={disabled}>Add subgroup</button>
@@ -44,7 +45,7 @@ export function SubgroupSettings({ folders, groups, disabled, onAdd, onRetry }: 
         if (!folder) return null
         return <li key={group.id}>
           <div>
-            <strong>{folder.name} / {group.name}</strong>
+            <strong>{paths.get(folder.id)} / {group.name}</strong>
             <p>{stateText[group.state]}{group.state !== 'draft' && ` · ${group.title}`}</p>
           </div>
           {group.state !== 'archived' && <button className="button" disabled={disabled}

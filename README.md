@@ -37,4 +37,12 @@ If setup stops partway through, use the action next to the subgroup. **Set up ch
 
 See the [connected workspace checklist](TELEGRAM_TEST.md#phase-3-connected-workspace) for live verification.
 
+### Organize and back up your Telegram library
+
+In **Local library → Albums**, open an album and use **New child album** to build a nested structure. In the connected workspace, open a file to assign an album or edit its tags. Use the album, favorite, and tag filters to narrow the files currently loaded from the selected chat. **Select files** lets you apply an album, favorite, or tags to several files at once.
+
+When you stage an upload, Limitless flags a possible duplicate if a loaded file in the selected chat has the same name and size. To look for older matches, load more messages first.
+
+Use **Organization backup → Export backup** to save a versioned JSON file containing the connected account’s album assignments, their parent albums, favorites, tags, and subgroup links. Sign in with the same Telegram account to choose and restore it. Restore adds missing records and keeps existing organization. The backup covers organization metadata. Telegram holds the files, and device-only imports need their own copies. Use **Check indexed files in this chat** to see whether any linked attachments are unavailable in Telegram.
+
 New libraries include [sample photos](public/demo/CREDITS.md).
