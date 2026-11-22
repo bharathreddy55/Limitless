@@ -8,7 +8,9 @@
 .saved-card p { color: var(--muted); font-size: .9rem; line-height: 1.45; }
 .saved-auth { display: grid; gap: .85rem; max-width: 34rem; }
 .saved-auth label { display: grid; gap: .33rem; font-size: .88rem; font-weight: 630; }
-.saved-auth input, .saved-tools input, .saved-tools select, .saved-subgroup-form input, .saved-subgroup-form select { width: 100%; min-width: 0; padding: .63rem .7rem; border: 1px solid var(--line); border-radius: .65rem; color: var(--text); background: var(--page); }
+.saved-auth input, .saved-auth select, .saved-tools input, .saved-tools select, .saved-subgroup-form input, .saved-subgroup-form select { width: 100%; min-width: 0; padding: .63rem .7rem; border: 1px solid var(--line); border-radius: .65rem; color: var(--text); background: var(--page); }
+.saved-phone-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.saved-phone-fields > div { display: grid; gap: .33rem; }
 .saved-subgroups summary { cursor: pointer; font-weight: 650; }
 .saved-subgroups > p { margin-top: .6rem; }
 .saved-subgroup-form { display: flex; align-items: end; flex-wrap: wrap; gap: .75rem; margin-top: .9rem; }
@@ -32,4 +34,8 @@
 @media (max-width: 560px) {
   .saved-workspace { padding-top: 1rem; }
   .saved-heading { align-items: flex-start; }
+}
+
+@media (max-width: 380px) {
+  .saved-phone-fields { grid-template-columns: 1fr; }
 }

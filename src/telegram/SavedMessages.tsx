@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
+import parsePhoneNumber, { getCountries, getCountryCallingCode, type CountryCode } from 'libphonenumber-js/min'
 import { ArrowLeft, FileUp, Images, RefreshCw, Send } from 'lucide-react'
 import { FileList, MediaGallery } from '../Gallery'
 import { formatSize, isMedia, type Folder } from '../library'
@@ -23,6 +24,12 @@ type Job = {
 const deliveries = { app: 'your signed-in Telegram app', sms: 'SMS', call: 'a phone call', email: 'email' }
 const rpcFailure = (reason: unknown, fallback: string) => describeFailure(reason, fallback, 'production')
 const subgroupFailure = 'Could not finish subgroup setup. If the subgroup was added, use the action next to it to continue.'
+const regionNames = new Intl.DisplayNames('en', { type: 'region' })
+const countries = getCountries().map((country) => ({
+  country,
+  name: regionNames.of(country) ?? country,
+  code: getCountryCallingCode(country),
+})).sort((left, right) => left.name.localeCompare(right.name, 'en'))
 
 function mergeFiles(before: SavedFile[], after: SavedFile[]) {
   return [...new Map([...before, ...after].map((file) => [file.id, file])).values()]
@@ -35,6 +42,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
   const sendAbort = useRef<AbortController | null>(null)
   const picker = useRef<HTMLInputElement>(null)
   const [connected, setConnected] = useState(false)
+  const [country, setCountry] = useState<CountryCode>('IN')
   const [challenge, setChallenge] = useState<Challenge>()
   const [files, setFiles] = useState<SavedFile[]>([])
   const [metadata, setMetadata] = useState<TelegramMetadata[]>([])
@@ -90,11 +98,16 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
   function requestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (pending.current || session.current) return
-    const phone = String(new FormData(event.currentTarget).get('phone') ?? '')
+    const number = String(new FormData(event.currentTarget).get('phone') ?? '')
     void run('Requesting a Telegram sign-in code…', 'Could not request the sign-in code.', async () => {
+      const phone = parsePhoneNumber(number, { defaultCountry: country, extract: false })
+      if (!phone?.isPossible() || phone.ext) throw new TelegramError('Enter a complete phone number.')
+      if (phone.countryCallingCode !== getCountryCallingCode(country)) {
+        throw new TelegramError('Choose the country code that matches your phone number.')
+      }
       const client = await createSavedSession()
       try {
-        const result = await client.requestCode(phone)
+        const result = await client.requestCode(phone.number)
         session.current = client
         if (result.kind !== 'signed-in') {
           setChallenge(result)
@@ -322,7 +335,15 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
     </form> : <form className="saved-card saved-auth" method="post" onSubmit={requestCode}>
       <h2>Continue with Telegram</h2>
       <p>Sign in once to open your Saved Messages and subgroup chats in Limitless.</p>
-      <label>Telegram phone number<input name="phone" type="tel" placeholder="+ followed by country code" autoComplete="tel" required /></label>
+      <div className="saved-phone-fields">
+        <div>
+          <label htmlFor="telegram-country">Country code</label>
+          <select id="telegram-country" value={country} autoComplete="country" onChange={(event) => setCountry(event.currentTarget.value as CountryCode)}>
+            {countries.map(({ country, name, code }) => <option key={country} value={country}>{name} (+{code})</option>)}
+          </select>
+        </div>
+        <label>Phone number<input name="phone" type="tel" autoComplete="tel-national" required /></label>
+      </div>
       <div><button className="button primary" disabled={Boolean(busy)}>Request sign-in code</button></div>
     </form> : <>
       <SubgroupSettings folders={folders} groups={groups} disabled={Boolean(busy)} onAdd={addSubgroup} onRetry={retrySubgroupSetup} />
