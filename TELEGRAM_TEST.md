@@ -69,15 +69,15 @@ The mocked browser workflow passed pagination, download-byte comparison, album a
 
 ### Telegram subgroup checklist
 
-A mocked browser test passed for multiple albums and subgroups, recovery from interrupted creation or archiving, separate upload destinations, matching download bytes, changes loaded on refresh, and reopening a subgroup after a fresh sign-in.
+A mocked browser test passed for one-click creation and archiving across multiple albums and subgroups, duplicate prevention, recovery from interrupted setup, separate upload destinations, matching download bytes, changes loaded on refresh, and reopening a subgroup after a fresh sign-in.
 
 Live verification is pending. Run this only when you want to create real Telegram chats for new subgroups.
 
-1. In **Telegram subgroups**, add a subgroup under an existing album. Verify the subgroup appears locally with **Create private chat** available.
-2. Choose **Create private chat** and confirm the named, private group appears in **Archived Chats** in Telegram. Repeat under a different album and check that both chats have their own destination in Limitless.
+1. In **Telegram subgroups**, choose an existing album, enter a name, and click **Add subgroup**. Wait for the archive confirmation in Limitless, then check that the named private group appears in Telegram’s **Archived Chats**.
+2. Repeat under a different album. Confirm each click creates one archived chat and both appear as separate destinations in Limitless.
 3. Send a small disposable file to the first subgroup. Verify the bytes on download and check that the second chat and Saved Messages show their own files. Open the message directly in Telegram from its details.
 4. Add or delete a disposable file in Telegram, then refresh the associated subgroup in Limitless. Sign out, sign back in to the same account, and confirm the subgroup opens again.
-5. If setup is interrupted, use **Find created chat** or **Archive chat**, as shown. Verify recovery uses the same Telegram group.
+5. If setup is interrupted, use **Set up chat**, **Find created chat**, or **Archive chat**, as shown. Verify recovery leaves one Telegram group per subgroup.
 
 ## Run the mobile test
 

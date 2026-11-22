@@ -22,6 +22,7 @@ type Job = {
 
 const deliveries = { app: 'your signed-in Telegram app', sms: 'SMS', call: 'a phone call', email: 'email' }
 const rpcFailure = (reason: unknown, fallback: string) => describeFailure(reason, fallback, 'production')
+const subgroupFailure = 'Could not finish subgroup setup. If the subgroup was added, use the action next to it to continue.'
 
 function mergeFiles(before: SavedFile[], after: SavedFile[]) {
   return [...new Map([...before, ...after].map((file) => [file.id, file])).values()]
@@ -54,17 +55,15 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
   const defaultFolderId = source?.albumId ?? null
 
   async function run(label: string, fallback: string, work: () => Promise<void>) {
-    if (pending.current) return false
+    if (pending.current) return
     pending.current = true
     setBusy(label)
     setNotice('')
     setError('')
     try {
       await work()
-      return true
     } catch (reason) {
       setError(rpcFailure(reason, fallback))
-      return false
     } finally {
       pending.current = false
       setBusy('')
@@ -178,8 +177,10 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
   async function addSubgroup(albumId: string, name: string) {
     const client = session.current
     if (!client) return false
-    return run('Adding subgroup…', 'Could not add the subgroup on this device.', async () => {
-      if (!name || name.length > 60 || !folders.some((folder) => folder.id === albumId)) {
+    let added = false
+    await run('Adding subgroup and setting up its Telegram chat…', subgroupFailure, async () => {
+      const folder = folders.find((folder) => folder.id === albumId)
+      if (!folder || !name || name.length > 60) {
         throw new TelegramError('Choose an album and enter a subgroup name of up to 60 characters.')
       }
       const group = { id: crypto.randomUUID(), albumId, name, state: 'draft' } as const
@@ -192,22 +193,25 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
         }
         throw error
       }
-      await readTelegramSubgroups(client.accountId).then(setGroups)
-      setNotice('Subgroup added. Create its private Telegram chat when you’re ready.')
+      added = true
+      await finishSubgroupSetup(client, folder, group)
     })
+    return added
   }
 
-  function connectSubgroup(folder: Folder, group: TelegramSubgroup) {
+  async function finishSubgroupSetup(client: SavedSession, folder: Folder, group: TelegramSubgroup) {
+    try {
+      await setUpSubgroup(client, folder.name, group)
+    } finally {
+      await readTelegramSubgroups(client.accountId).then(setGroups)
+    }
+    setNotice(`${group.name} is ready in Telegram Archive.`)
+  }
+
+  function retrySubgroupSetup(folder: Folder, group: TelegramSubgroup) {
     const client = session.current
     if (!client) return
-    void run('Setting up Telegram subgroup…', 'Telegram did not confirm setup. Use the action shown next to this subgroup to continue.', async () => {
-      try {
-        await setUpSubgroup(client, folder.name, group)
-      } finally {
-        await readTelegramSubgroups(client.accountId).then(setGroups)
-      }
-      setNotice(`${group.name} is ready in Telegram Archive.`)
-    })
+    void run('Setting up Telegram subgroup…', subgroupFailure, () => finishSubgroupSetup(client, folder, group))
   }
 
   function loadMore() {
@@ -328,7 +332,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
       <p>Use the app credentials from <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer">Telegram API development tools</a>.</p>
       <div><button className="button primary" disabled={Boolean(busy)}>Request sign-in code</button></div>
     </form> : <>
-      <SubgroupSettings folders={folders} groups={groups} disabled={Boolean(busy)} onAdd={addSubgroup} onSetUp={connectSubgroup} />
+      <SubgroupSettings folders={folders} groups={groups} disabled={Boolean(busy)} onAdd={addSubgroup} onRetry={retrySubgroupSetup} />
       {archivedByAlbum.size > 0 && <div className="saved-tools saved-source">
         <label htmlFor="telegram-chat">Telegram chat</label>
         <select id="telegram-chat" value={sourceId} disabled={Boolean(busy) || Boolean(job)} onChange={(event) => changeSource(event.currentTarget.value)}>

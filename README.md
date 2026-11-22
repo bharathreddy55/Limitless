@@ -25,11 +25,11 @@ Album and favorite changes are saved in this browser for the connected account. 
 
 ### Use private Telegram chats for subgroups
 
-Open **Telegram subgroups**, select an existing Limitless album, and enter a subgroup name. **Add subgroup** saves the setup in this browser. **Create private chat** creates one private Telegram group under your account and moves it to **Archived Chats**. Its Telegram title uses `Album · Subgroup`. Repeat for as many subgroups as you need, subject to Telegram’s group and rate limits.
+While signed in to Telegram in Limitless, open **Telegram subgroups**, select an existing album, and enter a subgroup name. **Add subgroup** saves the setup in this browser, creates a private group under your Telegram account, and moves it to **Archived Chats**. Its Telegram title uses `Album · Subgroup`. Repeat for as many subgroups as you need, subject to Telegram’s group and rate limits.
 
 Use the **Telegram chat** menu to browse or upload to a subgroup. In Telegram, open **Archived Chats** and find the group by title to manage its files. If you change the group’s files in Telegram, refresh the subgroup in Limitless. You can also use **Open in Telegram** in a subgroup file’s details. The album-to-chat links are stored in the current browser profile for your Telegram account.
 
-If Telegram creates the chat but archiving fails, use **Archive chat**. If confirmation of creation is interrupted, use **Find created chat** to look for the chat by its original title and description before archiving it.
+If setup stops partway through, use the action next to the subgroup. **Set up chat** retries a rejected creation or completes an older draft. **Find created chat** checks the original title and description when Telegram’s confirmation was interrupted. **Archive chat** retries archiving a chat already created.
 
 See the [connected workspace checklist](TELEGRAM_TEST.md#phase-3-connected-workspace) for live verification.
 

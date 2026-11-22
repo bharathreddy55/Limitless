@@ -3,19 +3,19 @@ import type { Folder } from '../library'
 import type { TelegramSubgroup } from '../storage'
 
 const stateText = {
-  draft: 'Ready to create',
+  draft: 'Chat setup needed',
   pending: 'Creation needs confirmation',
   created: 'Ready to archive',
   archived: 'Added to Telegram Archive',
 }
-const actions = { draft: 'Create private chat', pending: 'Find created chat', created: 'Archive chat' }
+const actions = { draft: 'Set up chat', pending: 'Find created chat', created: 'Archive chat' }
 
-export function SubgroupSettings({ folders, groups, disabled, onAdd, onSetUp }: {
+export function SubgroupSettings({ folders, groups, disabled, onAdd, onRetry }: {
   folders: Folder[]
   groups: TelegramSubgroup[]
   disabled: boolean
   onAdd: (albumId: string, name: string) => Promise<boolean>
-  onSetUp: (folder: Folder, group: TelegramSubgroup) => void
+  onRetry: (folder: Folder, group: TelegramSubgroup) => void
 }) {
   const byId = new Map(folders.map((folder) => [folder.id, folder]))
 
@@ -30,7 +30,7 @@ export function SubgroupSettings({ folders, groups, disabled, onAdd, onSetUp }: 
 
   return <details className="saved-card saved-subgroups">
     <summary>Telegram subgroups</summary>
-    <p>Create a subgroup under an album, then choose <strong>Create private chat</strong> to add its chat to Telegram Archive.</p>
+    <p>Adding a subgroup creates a private chat in your Telegram account and archives it automatically.</p>
     {folders.length ? <form className="saved-subgroup-form" onSubmit={add}>
       <label>Parent album<select name="album" required disabled={disabled}>
         {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
@@ -48,7 +48,7 @@ export function SubgroupSettings({ folders, groups, disabled, onAdd, onSetUp }: 
             <p>{stateText[group.state]}{group.state !== 'draft' && ` · ${group.title}`}</p>
           </div>
           {group.state !== 'archived' && <button className="button" disabled={disabled}
-            onClick={() => onSetUp(folder, group)}>{actions[group.state]}</button>}
+            onClick={() => onRetry(folder, group)}>{actions[group.state]}</button>}
         </li>
       })}
     </ul>}
