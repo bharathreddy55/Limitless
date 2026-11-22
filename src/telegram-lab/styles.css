@@ -1,0 +1,28 @@
+.lab { width: min(100%, 48rem); min-height: 100dvh; margin: auto; padding: 1.6rem 1rem 3rem; }
+.lab-brand { display: inline-flex; text-decoration: none; }
+.lab-header { margin: 1.9rem 0 1.4rem; }
+.lab-header h1 { font-size: clamp(2rem, 5vw, 2.9rem); letter-spacing: -.055em; margin: .55rem 0; }
+.lab-header p { color: var(--muted); line-height: 1.5; }
+.lab-badge { display: inline-flex; align-items: center; gap: .42rem; padding: .38rem .65rem; border-radius: 2rem; color: var(--accent); background: var(--accent-fill); font-size: .83rem; font-weight: 650; }
+.lab-badge.production { color: light-dark(#6e380b, #ffdaaa); background: light-dark(#ffeacb, #503414); }
+.lab-panel { display: grid; gap: .9rem; margin: 0 0 .9rem; padding: 1.15rem; border-radius: 1rem; border: 1px solid var(--line); background: var(--surface); }
+.lab-panel h2 { font-size: 1.12rem; overflow-wrap: anywhere; }
+.lab-panel > .button, .lab-proof > .button { justify-self: start; }
+.lab-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .7rem; }
+.lab-fields label, .lab-size { display: grid; gap: .35rem; font-size: .9rem; font-weight: 650; }
+.lab-fields input, .lab-size select { width: 100%; min-width: 0; padding: .6rem; border: 1px solid var(--line); border-radius: .55rem; color: var(--text); background: var(--page); }
+.lab-muted { font-size: .875rem; line-height: 1.46; color: var(--muted); }
+.lab-muted a { color: var(--accent); }
+.lab-panel details { padding: .7rem; background: var(--rail); border-radius: .65rem; }
+.lab-panel summary { font-size: .875rem; font-weight: 650; cursor: pointer; }
+.lab-panel details .lab-fields { margin: .7rem 0 .55rem; }
+.lab-row { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: .65rem; }
+.lab-controls { justify-content: flex-start; }
+.lab-proof { display: grid; gap: .5rem; padding: .75rem; border-radius: .65rem; color: var(--muted); background: var(--rail); font-size: .87rem; overflow-wrap: anywhere; }
+.lab-proof > strong, .lab-proof .lab-match { color: var(--accent); }
+.lab-list { display: grid; gap: .4rem; margin: 0; padding-left: 1.25rem; font-size: .875rem; overflow-wrap: anywhere; }
+.lab-list span { color: var(--muted); }
+.lab-status, .lab-error { padding: .65rem .8rem; border-radius: .65rem; font-size: .875rem; }
+.lab-status { color: var(--accent); background: var(--accent-fill); }
+.lab-error { color: var(--danger); background: var(--danger-bg); }
+@media (max-width: 490px) { .lab-fields { grid-template-columns: minmax(0, 1fr); } }

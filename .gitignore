@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-telegram-lab/
+mobile-lab/
+*.local
+.env
+.env.*
+*.log

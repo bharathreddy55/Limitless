@@ -1,0 +1,53 @@
+# Limitless project plan
+
+**Status** — Phase 1 is implemented. The core Phase 2 workflows passed on desktop web and a real Android phone against Telegram's Test Server. Android also passed network recovery with a 256 KiB file. The production-account pilot is complete. Sign-in, the 64 KiB checksum round trip, reconnect to the same account and message, and sign-out passed. iOS work is deferred. [Test record](TELEGRAM_TEST.md#verification-record)
+
+**Release outcome** — On the web, Android, and iOS, a user can connect their own Telegram account, browse Saved Messages, upload and retrieve a file, and organize files into folders. Export and import let users recover their organization after clearing site data or reinstalling an app. The web version ships first.
+
+**Working assumptions** — Start at ₹0 using an existing computer, internet connection, and Telegram account. Target personal use first, then an invite-only beta. Use an original interface. Start the web app with TypeScript, React, Vite, and IndexedDB. Evaluate Capacitor to reuse the React interface and core file logic in both mobile apps. Confirm the Telegram client library and mobile runtime in Phase 2 based on compatibility, licensing, maintenance, and transfer behavior.
+
+| Phase | Deliverable | Ready to advance when |
+| --- | --- | --- |
+| 0 · Workspace and plan | Local Git checkout linked to the supplied GitHub repository, README, and this roadmap. | The checkout and remote are verified and the owner approves Phase 1. |
+| 1 · Local file manager | Build an accessible library view using sample files and files the user selects. Support folders, filename search, sorting, favorites, image/PDF previews, and theme preferences. Store metadata in IndexedDB. | A user can add a file, organize it, find it, preview it, and reload the page with organization and preferences intact. Keyboard navigation and the mobile layout work. |
+| 2 · Telegram and mobile feasibility | Register our own API ID. Use Telegram's test environment for sign-in and two-step verification. With the owner's authorization, validate the real Saved Messages flow on a small set of disposable files. Run the same transfer on desktop web, Android WebView, and iOS WKWebView. | A retrieved file matches the original by checksum on each tested platform. Reconnecting creates no duplicate listing, and logout clears local session access. Record tested file sizes and device limits. An unavailable device leaves that platform unverified. If Capacitor cannot support reliable transfers, evaluate a native transfer module before committing to it. |
+| 3 · Connected personal release | Connect the library to Saved Messages. Map each entry to its Telegram account, chat, and message. Add upload progress, cancellation, safe retries, download, refresh, and an explicit distinction in the UI between removing a folder entry and deleting its source message. | A user can complete the first-release workflow with real files. Interrupt a transfer, retry, then refresh. Verify no duplicate uploads or false success messages, and handle files removed in Telegram. |
+| 4 · Organization and recovery | Add nested folders, tags, filters, multi-select actions, duplicate detection, and versioned index export/import. Store the user's folder and tag assignments separately from file contents. | Export, clear site data, reconnect, and restore the index. Reject an index from the wrong account. Explain missing source files and require confirmation before a destructive action. |
+| 5 · Android app | Build the Android app on Windows using Android Studio. Integrate the system file picker, Downloads and sharing, and session storage protected by Android Keystore. Produce an APK for local testing. | Install on a real Android device. Sign in, import a file, verify its downloaded checksum, save or share it, recover from an interrupted transfer, and sign out. Check TalkBack and test an app update. |
+| 6 · iOS app | Build the iOS app using macOS and Xcode. Integrate the Files picker, save and share actions, and session storage protected by Keychain. Test in the simulator and on a real iPhone. | Exercise the same file workflow and recovery checks as Android. Verify behavior after backgrounding and relaunch, session cleanup on sign-out, and VoiceOver. |
+| 7 · Beta and distribution | Deploy the web app over HTTPS on a free host and run a private beta. For mobile, use direct device testing first, then Play Console testing and TestFlight once store accounts and their costs are approved. Prepare store listings, privacy disclosures, and review access. | A tester on each platform can onboard, transfer, recover, and sign out without developer help. Verify account isolation and credential handling. Track store review and approval separately for each platform. |
+| 8 · Optional expansion | Choose the next feature from beta feedback. Candidates include encrypted index sync across devices, resumable large transfers, public links with expiry/revocation, and team libraries with access controls. | For each selected feature, document who can access the data, how access is revoked, expected monthly cost, and a testable release condition before building it. |
+
+Phase 2 work continues on web and Android. The iOS checks and Phase 6 are deferred until the project owner resumes them. Web beta testing can start once Phase 4 passes.
+
+## Shared core and mobile behavior
+
+- Share file models, library screens, search, folders, tags, and export/import across platforms. Keep file picking, download destinations, share actions, and session storage behind platform-specific interfaces. [Capacitor setup](https://capacitorjs.com/docs/getting-started)
+- Start with transfers while the app is open. Test switching networks, backgrounding, low disk space, and transfers interrupted by the OS. Show the actual transfer status and provide a safe retry. Set supported file sizes from real device tests.
+- Test index export from web and import on both mobile platforms using the same Telegram account. Automatic sync of app folders and tags is Phase 8 work.
+- For iOS store review, plan for device features such as importing from Files, saving and sharing downloads, and browsing cached file metadata offline. Apple evaluates apps for utility beyond a repackaged website. [App Review Guidelines, section 4.2](https://developer.apple.com/app-store/review/guidelines/#minimum-functionality)
+
+## Storage and free-tier limits
+
+- **Files** live in the user's Telegram Saved Messages in the connected version. App folders and tags are local metadata initially. Losing access to the account or deleting a source message can make a file unavailable. An exported index restores organization only. Keep separate copies of irreplaceable files.
+- **Browser storage** can be cleared or evicted. Rebuild the file list by reading Saved Messages and restore custom organization from the exported index. Offline access initially covers cached metadata. Downloading uncached files requires connectivity.
+- **Hosting** can start locally, followed by a free static deployment on a provider subdomain. Keep file transfers between the browser and Telegram where the feasibility test confirms this works. Closing the browser or mobile suspension can interrupt transfers. Background processing, independent backups, and public sharing require separate design and cost estimates.
+- **Telegram** controls transfer limits, rate limits, and account access. Honor server-specified waits and give the user a clear retry time. Use the user client API for Saved Messages. A bot would require a different workflow. Review [API terms](https://core.telegram.org/api/terms), [application registration](https://core.telegram.org/api/obtaining_api_id), [authorization](https://core.telegram.org/api/auth), and [error handling](https://core.telegram.org/api/errors) before the integration milestone.
+- **Spending decision** — Use local tools and free static hosting where feasible. Confirm costs before enrolling in either store or enabling any metered backend, paid storage, custom domain, or monitoring subscription. Review the host's [published limits](https://developers.cloudflare.com/pages/platform/limits/) at deployment time.
+
+## Mobile testing and store costs
+
+| Platform | Free route | Distribution cost and limits |
+| --- | --- | --- |
+| Android | Build on Windows with Android Studio and test via the emulator or install a debug APK on your own device. | Google Play Console registration is **US$25 one time**. Personal accounts subject to Google's closed testing rule need at least **12 opted-in testers for 14 continuous days** before applying for production access. [Registration](https://support.google.com/googleplay/android-developer/answer/6112435) · [Testing requirements](https://support.google.com/googleplay/android-developer/answer/14151465) |
+| iOS | Use an existing or borrowed Mac with Xcode and test on your own iPhone with a free Apple account. Free device provisioning expires after **seven days** and requires rebuilding and reinstalling. | **US$99 per year** for the Apple Developer Program for TestFlight and App Store distribution, or the local price shown at enrollment. Budget separately for Mac or hosted macOS access if needed. [Xcode requirements](https://capacitorjs.com/docs/getting-started/environment-setup) · [Free device testing](https://developer.apple.com/help/account/basics/about-your-developer-account) · [Apple membership](https://developer.apple.com/programs/) |
+| Mobile web | Keep using the mobile browser and add the site to the home screen on supported devices. | No store enrollment for the web version. Device integrations and background behavior can differ from the Android and iOS apps. |
+
+## How to run each phase
+
+1. Open a milestone with the phase outcome and acceptance checks above. Split it into issues small enough for one reviewed change each.
+2. Work on a feature branch. Keep credentials, login codes, session files, and personal test data out of Git and build logs.
+3. Demonstrate the user workflow and record the checks performed, defects, and known limits in the pull request. For Telegram or storage changes, include a failure or recovery case.
+4. Close the milestone when its acceptance checks pass. Record any scope or budget decision before starting the next phase.
+
+**Current milestone** — The Phase 3 Saved Messages workspace is implemented locally. Run the [connected workspace checklist](TELEGRAM_TEST.md#phase-3-connected-workspace) on a real account before marking Phase 3 passed. Cross-device sync, public links, team access, and paid infrastructure remain optional decisions for later milestones.
