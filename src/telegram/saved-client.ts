@@ -57,7 +57,15 @@ function savedFile(accountId: number, message: Message, source: TelegramChatAddr
   }
 }
 
-export function createSavedSession(apiId: number, apiHash: string) {
+export async function createSavedSession() {
+  const response = await fetch('/__limitless/telegram-config', {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(5000),
+  })
+  if (!response.ok || !response.headers.get('content-type')?.startsWith('application/json')) {
+    throw new TelegramError('Telegram sign-in needs to be configured on this Limitless server.')
+  }
+  const { apiId, apiHash }: { apiId: number; apiHash: string } = await response.json()
   const connection = createConnection('production', apiId, apiHash, {
     middlewares: [
       (ctx, next) => next({ ...ctx, params: {
@@ -188,4 +196,4 @@ export function createSavedSession(apiId: number, apiHash: string) {
   }
 }
 
-export type SavedSession = ReturnType<typeof createSavedSession>
+export type SavedSession = Awaited<ReturnType<typeof createSavedSession>>

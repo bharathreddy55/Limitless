@@ -19,7 +19,11 @@ The local development server provides a [Telegram test lab](TELEGRAM_TEST.md) an
 
 ### Use Saved Messages in Limitless
 
-Open the main app and choose **Telegram**. Sign in with your own Telegram account. **Choose file** stages a file for review, and **Send to Saved Messages** performs the upload. You can cancel a send or retry the same transfer while the tab is open. Use **Load older messages** to browse additional pages.
+For a local checkout, configure the Telegram application once in an untracked `.env.local` file in the project root. Set `LIMITLESS_TELEGRAM_API_ID` and `LIMITLESS_TELEGRAM_API_HASH` using [Telegram API development tools](https://my.telegram.org/apps), then start or restart the local server. The server provides the configuration to its local browser for the direct Telegram connection. A static deployment needs its own sign-in configuration.
+
+Open the main app, enter your Telegram phone number, and submit the code Telegram sends. If your account has two-step verification, enter your Telegram password when prompted. Limitless opens Saved Messages after sign-in. Select **Local library** to browse your device imports and albums.
+
+**Choose file** stages a file for review, and **Send to Saved Messages** performs the upload. You can cancel a send or retry the same transfer while the tab is open. Use **Load older messages** to browse additional pages.
 
 Album and favorite changes are saved in this browser for the connected account. The file stays in its original Telegram chat. To download a file, open it, choose **Download**, then **Save file**. Browser downloads are capped at 100 MiB and previews at 16 MiB. Use **Sign out** to end the Telegram session. Closing the tab clears local access.
 

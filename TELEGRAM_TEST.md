@@ -57,7 +57,9 @@ A local browser test with mocked Telegram responses verified the checksum, recon
 
 ## Phase 3 connected workspace
 
-Open the main Limitless app and choose **Telegram**. Live sign-in and transfer verification for this workspace are separate from the completed one-file pilot.
+Open the main Limitless app with the [local Telegram application configuration](README.md#use-saved-messages-in-limitless) in place. Sign in with your phone number and Telegram code. Live sign-in and transfer verification for this workspace are separate from the completed one-file pilot.
+
+A mocked browser test passed for opening the workspace from the phone-number screen, retrying an invalid code, completing two-step verification when requested, and returning to the phone-number screen after sign-out.
 
 The mocked browser workflow passed pagination, download-byte comparison, album and favorite persistence, cancelling and retrying with the same upload ID, reconnect without duplicates, missing-file handling, and sign-out.
 

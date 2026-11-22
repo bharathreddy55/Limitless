@@ -90,13 +90,11 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
   function requestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (pending.current || session.current) return
-    const form = event.currentTarget
-    const fields = new FormData(form)
-    form.reset()
+    const phone = String(new FormData(event.currentTarget).get('phone') ?? '')
     void run('Requesting a Telegram sign-in code…', 'Could not request the sign-in code.', async () => {
-      const client = createSavedSession(Number(fields.get('apiId')), String(fields.get('apiHash') ?? '').trim())
+      const client = await createSavedSession()
       try {
-        const result = await client.requestCode(String(fields.get('phone') ?? ''))
+        const result = await client.requestCode(phone)
         session.current = client
         if (result.kind !== 'signed-in') {
           setChallenge(result)
@@ -303,7 +301,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
       <span className="saved-origin"><Send size={15} aria-hidden="true" /> Telegram Production</span>
     </div>
     <div className="page-head saved-heading">
-      <div><h1>{sourceName}</h1><p>{connected ? `${items.length} loaded from ${sourceDescription}` : 'Your Telegram photos, videos, and files in Limitless.'}</p></div>
+      <div><h1>{connected ? sourceName : 'Sign in to Limitless'}</h1>{connected && <p>{items.length} loaded from {sourceDescription}</p>}</div>
       {connected && <div className="saved-actions">
         <button className="button" onClick={() => load()} disabled={Boolean(busy)}><RefreshCw size={17} /> Refresh</button>
         <button className="button" onClick={() => load(true)} disabled={Boolean(busy)}>Reconnect</button>
@@ -322,14 +320,9 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
       <div className="saved-actions"><button className="button primary" disabled={Boolean(busy)}>Verify and sign in</button>
         <button className="button" type="button" onClick={signOut} disabled={Boolean(busy)}>Start over</button></div>
     </form> : <form className="saved-card saved-auth" method="post" onSubmit={requestCode}>
-      <h2>Connect your Telegram account</h2>
-      <p>Use your own account. Limitless keeps the Telegram session in memory until you sign out or close the tab.</p>
-      <div className="saved-credentials">
-        <label>API ID<input name="apiId" inputMode="numeric" pattern="[0-9]+" autoComplete="off" required /></label>
-        <label>API hash<input name="apiHash" type="password" autoComplete="off" minLength={32} maxLength={32} required /></label>
-      </div>
-      <label>Telegram phone number<input name="phone" type="tel" placeholder="+ followed by country code" autoComplete="off" required /></label>
-      <p>Use the app credentials from <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer">Telegram API development tools</a>.</p>
+      <h2>Continue with Telegram</h2>
+      <p>Sign in once to open your Saved Messages and subgroup chats in Limitless.</p>
+      <label>Telegram phone number<input name="phone" type="tel" placeholder="+ followed by country code" autoComplete="tel" required /></label>
       <div><button className="button primary" disabled={Boolean(busy)}>Request sign-in code</button></div>
     </form> : <>
       <SubgroupSettings folders={folders} groups={groups} disabled={Boolean(busy)} onAdd={addSubgroup} onRetry={retrySubgroupSetup} />

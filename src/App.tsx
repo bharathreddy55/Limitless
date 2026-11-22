@@ -39,7 +39,7 @@ export function App() {
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
-  const [telegram, setTelegram] = useState<'closed' | 'visible' | 'hidden'>('closed')
+  const [showTelegram, setShowTelegram] = useState(true)
   const fileInput = useRef<HTMLInputElement>(null)
   const searchInput = useRef<HTMLInputElement>(null)
   const dragDepth = useRef(0)
@@ -203,12 +203,12 @@ export function App() {
 
   return (
     <>
-    {telegram !== 'closed' && <div hidden={telegram !== 'visible'}>
-      <Suspense fallback={<p className="loading" role="status">Opening Saved Messages…</p>}>
-        <SavedMessages folders={folders} onBack={() => setTelegram('hidden')} />
+    <div hidden={!showTelegram}>
+      <Suspense fallback={<p className="loading" role="status">Opening Limitless…</p>}>
+        <SavedMessages folders={folders} onBack={() => setShowTelegram(false)} />
       </Suspense>
-    </div>}
-    <div hidden={telegram === 'visible'}>
+    </div>
+    <div hidden={showTelegram}>
     <div className="shell" onDragEnter={(event) => {
       if (hasFiles(event)) { event.preventDefault(); dragDepth.current++; setDragging(!pendingWrite.current && !dialog) }
     }} onDragOver={(event) => {
@@ -241,7 +241,7 @@ export function App() {
             : <kbd aria-hidden="true">Ctrl K</kbd>}
         </div>
         <div className="top-actions">
-          <button className="button telegram-entry" aria-label="Saved Messages" onClick={() => setTelegram('visible')}>
+          <button className="button telegram-entry" aria-label="Saved Messages" onClick={() => setShowTelegram(true)}>
             <Send size={17} aria-hidden="true" /> <span>Telegram</span>
           </button>
           <button className="button primary" disabled={busy} onClick={() => fileInput.current?.click()}><Upload size={17} /> Import</button>

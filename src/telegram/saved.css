@@ -7,9 +7,7 @@
 .saved-card h2 { font-size: 1.09rem; overflow-wrap: anywhere; }
 .saved-card p { color: var(--muted); font-size: .9rem; line-height: 1.45; }
 .saved-auth { display: grid; gap: .85rem; max-width: 34rem; }
-.saved-auth a { color: var(--accent); }
 .saved-auth label { display: grid; gap: .33rem; font-size: .88rem; font-weight: 630; }
-.saved-credentials { display: grid; gap: .8rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .saved-auth input, .saved-tools input, .saved-tools select, .saved-subgroup-form input, .saved-subgroup-form select { width: 100%; min-width: 0; padding: .63rem .7rem; border: 1px solid var(--line); border-radius: .65rem; color: var(--text); background: var(--page); }
 .saved-subgroups summary { cursor: pointer; font-weight: 650; }
 .saved-subgroups > p { margin-top: .6rem; }
@@ -34,5 +32,4 @@
 @media (max-width: 560px) {
   .saved-workspace { padding-top: 1rem; }
   .saved-heading { align-items: flex-start; }
-  .saved-credentials { grid-template-columns: 1fr; }
 }
