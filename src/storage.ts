@@ -90,28 +90,59 @@ export const addFolder = (folder: Folder) => write('folders', (store) => store.a
 export const putTheme = (theme: Theme) => write('preferences', (store) => store.put(theme, 'theme'))
 
 export type TelegramMetadata = { id: string; folderId: string | null; favorite: boolean }
-const telegramPrefix = (account: number) => `telegram:${account}:self:`
+export type TelegramChatAddress = { chatId: number; channelId: number }
+export type TelegramSubgroup = { id: string; albumId: string; name: string } & (
+  | { state: 'draft' }
+  | { state: 'pending'; title: string }
+  | { state: 'created' | 'archived'; title: string; peer: TelegramChatAddress }
+)
 
-export async function readTelegramMetadata(account: number): Promise<TelegramMetadata[]> {
+async function readPreferences<T>(prefix: string): Promise<T[]> {
   const db = await openDatabase()
   const tx = db.transaction('preferences')
   const done = committed(tx)
-  const prefix = telegramPrefix(account)
   const records = tx.objectStore('preferences').getAll(IDBKeyRange.bound(prefix, prefix + '\uffff'))
   await done
   return records.result
 }
 
-export async function patchTelegramMetadata(account: number, messageId: number, change: Partial<Omit<TelegramMetadata, 'id'>>) {
+export const readTelegramMetadata = (account: number) => readPreferences<TelegramMetadata>(`telegram:${account}:`)
+const subgroupPrefix = (account: number) => `telegram-subgroup:${account}:`
+const subgroupKey = (account: number, group: Pick<TelegramSubgroup, 'albumId' | 'name'>) =>
+  subgroupPrefix(account) + JSON.stringify([group.albumId, group.name.toLowerCase()])
+
+export const readTelegramSubgroups = (account: number) => readPreferences<TelegramSubgroup>(subgroupPrefix(account))
+
+export const addTelegramSubgroup = (account: number, group: TelegramSubgroup) =>
+  write('preferences', (store) => store.add(group, subgroupKey(account, group)))
+
+export async function replaceTelegramSubgroup(account: number, before: TelegramSubgroup, next: TelegramSubgroup) {
   const db = await openDatabase()
   const tx = db.transaction('preferences', 'readwrite')
   const done = committed(tx)
   const store = tx.objectStore('preferences')
-  const id = telegramPrefix(account) + messageId
+  const key = subgroupKey(account, before)
+  const lookup = store.get(key)
+  let replaced = false
+  lookup.onsuccess = () => {
+    const current: TelegramSubgroup | undefined = lookup.result
+    if (current?.id !== before.id || current.state !== before.state) return
+    store.put(next, key)
+    replaced = true
+  }
+  await done
+  return replaced
+}
+
+export async function patchTelegramMetadata(id: string, change: Partial<Omit<TelegramMetadata, 'id'>>, defaultFolderId: string | null) {
+  const db = await openDatabase()
+  const tx = db.transaction('preferences', 'readwrite')
+  const done = committed(tx)
+  const store = tx.objectStore('preferences')
   const lookup = store.get(id)
   let updated: TelegramMetadata | undefined
   lookup.onsuccess = () => {
-    updated = { folderId: null, favorite: false, ...lookup.result, ...change, id }
+    updated = { folderId: defaultFolderId, favorite: false, ...lookup.result, ...change, id }
     store.put(updated, id)
   }
   await done

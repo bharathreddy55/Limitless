@@ -67,6 +67,18 @@ The mocked browser workflow passed pagination, download-byte comparison, album a
 4. Add a file to a Limitless album, then choose **No album**. Verify the message stays in Telegram. Delete a disposable file directly in Telegram, then check that Limitless reports it missing and drops it when the relevant page is refreshed.
 5. Reconnect, then use **Sign out** and verify the sign-in form returns. Reopen with the same account to check local album and favorite metadata. It is stored separately per Telegram account.
 
+### Telegram subgroup checklist
+
+A mocked browser test passed for multiple albums and subgroups, recovery from interrupted creation or archiving, separate upload destinations, matching download bytes, changes loaded on refresh, and reopening a subgroup after a fresh sign-in.
+
+Live verification is pending. Run this only when you want to create real Telegram chats for new subgroups.
+
+1. In **Telegram subgroups**, add a subgroup under an existing album. Verify the subgroup appears locally with **Create private chat** available.
+2. Choose **Create private chat** and confirm the named, private group appears in **Archived Chats** in Telegram. Repeat under a different album and check that both chats have their own destination in Limitless.
+3. Send a small disposable file to the first subgroup. Verify the bytes on download and check that the second chat and Saved Messages show their own files. Open the message directly in Telegram from its details.
+4. Add or delete a disposable file in Telegram, then refresh the associated subgroup in Limitless. Sign out, sign back in to the same account, and confirm the subgroup opens again.
+5. If setup is interrupted, use **Find created chat** or **Archive chat**, as shown. Verify recovery uses the same Telegram group.
+
 ## Run the mobile test
 
 Build the dedicated test bundle from the repo. It uses the same lab as desktop and keeps its sessions in memory. Capacitor loads the bundle from its local app origin, and the lab checks for a secure cryptography context before showing credential fields. The regular web build stays separate.

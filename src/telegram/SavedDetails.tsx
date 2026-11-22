@@ -30,10 +30,11 @@ export function SavedThumbnail({ file, session }: { file: SavedFile; session: Sa
   </span>
 }
 
-export function SavedDetails({ file, session, folders, onMove, onClose, organizing, organizeError }: {
+export function SavedDetails({ file, session, folders, sourceName, onMove, onClose, organizing, organizeError }: {
   file: SavedFile
   session: SavedSession
   folders: Folder[]
+  sourceName: string
   onMove: (folderId: string | null) => void
   onClose: () => void
   organizing: boolean
@@ -82,7 +83,7 @@ export function SavedDetails({ file, session, folders, onMove, onClose, organizi
         <p>PDF preview is unavailable. Save the file to open it locally.</p>
       </object>}
       <div className="detail-row"><FileBadge file={file} />
-        <p className="file-meta">Saved Messages #{file.messageId} · {displaySize(file)} · {formatDate(file.addedAt)}</p>
+        <p className="file-meta">{sourceName} #{file.messageId} · {displaySize(file)} · {formatDate(file.addedAt)}</p>
       </div>
       <label className="move-control"><FolderInput size={17} aria-hidden="true" /> Album in Limitless
         <select disabled={organizing} value={file.folderId ?? ''} onChange={(event) => onMove(event.currentTarget.value || null)}>
@@ -90,7 +91,7 @@ export function SavedDetails({ file, session, folders, onMove, onClose, organizi
           {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
         </select>
       </label>
-      <p className="file-meta">Choosing No album removes the album entry. The Telegram message stays in Saved Messages.</p>
+      <p className="file-meta">Album changes apply in Limitless. The Telegram message stays in its original chat.</p>
       {active && <div className="saved-progress">
         <progress aria-label="Download progress" max={100} value={progress} />
         <button className="button" onClick={() => transfer.current?.abort()}>Cancel download</button>
@@ -98,6 +99,8 @@ export function SavedDetails({ file, session, folders, onMove, onClose, organizi
       {error && <p className="error" role="alert">{error}</p>}
       {organizeError && <p className="error" role="alert">{organizeError}</p>}
       <div className="dialog-actions">
+        {file.source && <a className="button" href={`https://t.me/c/${file.source.channelId}/${file.messageId}`}
+          target="_blank" rel="noreferrer">Open in Telegram</a>}
         {previewable && !preview && <button className="button" disabled={active || (file.bytes ?? 0) > previewLimit} onClick={() => void getFile(true)}>Preview</button>}
         {url ? <a className="button primary" href={url} download={file.name}><Download size={17} /> Save file</a>
           : <button className="button primary" disabled={active || (file.bytes ?? 0) > downloadLimit} onClick={() => void getFile(false)}><Download size={17} /> Download</button>}

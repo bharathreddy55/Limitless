@@ -21,7 +21,15 @@ The local development server provides a [Telegram test lab](TELEGRAM_TEST.md) an
 
 Open the main app and choose **Telegram**. Sign in with your own Telegram account. **Choose file** stages a file for review, and **Send to Saved Messages** performs the upload. You can cancel a send or retry the same transfer while the tab is open. Use **Load older messages** to browse additional pages.
 
-Album and favorite changes are saved in this browser for the connected account. Choosing **No album** leaves the Telegram message in Saved Messages. To download a file, open it, choose **Download**, then **Save file**. Browser downloads are capped at 100 MiB and previews at 16 MiB. Use **Sign out** to end the Telegram session. Closing the tab clears local access.
+Album and favorite changes are saved in this browser for the connected account. The file stays in its original Telegram chat. To download a file, open it, choose **Download**, then **Save file**. Browser downloads are capped at 100 MiB and previews at 16 MiB. Use **Sign out** to end the Telegram session. Closing the tab clears local access.
+
+### Use private Telegram chats for subgroups
+
+Open **Telegram subgroups**, select an existing Limitless album, and enter a subgroup name. **Add subgroup** saves the setup in this browser. **Create private chat** creates one private Telegram group under your account and moves it to **Archived Chats**. Its Telegram title uses `Album · Subgroup`. Repeat for as many subgroups as you need, subject to Telegram’s group and rate limits.
+
+Use the **Telegram chat** menu to browse or upload to a subgroup. In Telegram, open **Archived Chats** and find the group by title to manage its files. If you change the group’s files in Telegram, refresh the subgroup in Limitless. You can also use **Open in Telegram** in a subgroup file’s details. The album-to-chat links are stored in the current browser profile for your Telegram account.
+
+If Telegram creates the chat but archiving fails, use **Archive chat**. If confirmation of creation is interrupted, use **Find created chat** to look for the chat by its original title and description before archiving it.
 
 See the [connected workspace checklist](TELEGRAM_TEST.md#phase-3-connected-workspace) for live verification.
 

@@ -1,15 +1,20 @@
-import { InputMedia, Long, Photo, RawDocument, networkMiddlewares, tl, type FileLocation, type Message } from '@mtcute/web'
+import { InputMedia, Long, Photo, RawDocument, networkMiddlewares, tl, type Chat, type FileLocation, type Message } from '@mtcute/web'
 import { createConnection, TelegramError } from './connection'
 import type { RemoteDisplayFile } from '../library'
+import type { TelegramChatAddress } from '../storage'
 
-const CHAT = 'self'
 const PAGE_SIZE = 30
 export const downloadLimit = 100 * 1024 * 1024
 export const previewLimit = 16 * 1024 * 1024
 const thumbnailLimit = 256 * 1024
 export type HistoryOffset = { id: number; date: number }
 export type UploadId = { low: number; high: number }
-export type SavedFile = RemoteDisplayFile & { accountId: number; messageId: number; media: RawDocument | Photo }
+export type SavedFile = RemoteDisplayFile & {
+  accountId: number
+  messageId: number
+  media: RawDocument | Photo
+  source: TelegramChatAddress | null
+}
 
 export function newUploadId(): UploadId {
   const [low, high] = crypto.getRandomValues(new Int32Array(2))
@@ -20,14 +25,29 @@ export function isDuplicateUpload(error: unknown) {
   return tl.RpcError.is(error, 'RANDOM_ID_DUPLICATE')
 }
 
-function savedFile(accountId: number, message: Message): SavedFile | undefined {
+function privateGroupPeer(chat: Chat): tl.RawInputPeerChannel | undefined {
+  if (chat.raw._ !== 'channel' || !chat.raw.accessHash) return
+  if (chat.chatType !== 'supergroup' || !chat.isCreator || chat.isMin || chat.username || chat.usernames?.some((name) => name.active)) return
+  const peer = chat.inputPeer
+  if (peer._ !== 'inputPeerChannel') return
+  return peer
+}
+
+export function groupCreationRejected(error: unknown) {
+  return tl.RpcError.is(error) && [400, 401, 403, 404, 406, 420].includes(error.code)
+}
+
+const groupDescription = (id: string) => `Limitless subgroup ${id}`
+
+function savedFile(accountId: number, message: Message, source: TelegramChatAddress | null): SavedFile | undefined {
   const media = message.media
-  if (message.chat.id !== accountId || !(media instanceof Photo || media instanceof RawDocument)) return
+  if (message.chat.id !== (source?.chatId ?? accountId) || !(media instanceof Photo || media instanceof RawDocument)) return
   return {
-    id: `telegram:${accountId}:self:${message.id}`,
+    id: `telegram:${accountId}:${source ? `group:${source.chatId}` : 'self'}:${message.id}`,
     accountId,
     messageId: message.id,
     media,
+    source,
     name: media instanceof Photo ? `Photo ${message.id}.jpg` : media.fileName || `Attachment ${message.id}`,
     mime: media instanceof Photo ? 'image/jpeg' : media.mimeType || 'application/octet-stream',
     bytes: media.fileSize,
@@ -45,11 +65,34 @@ export function createSavedSession(apiId: number, apiHash: string) {
         timeout: ctx.params?.timeout ?? 25000,
         abortSignal: ctx.params?.abortSignal ?? AbortSignal.timeout(25000),
         floodSleepThreshold: ctx.params?.floodSleepThreshold ?? 0,
+        // Creating a group has no Telegram idempotency key.
+        maxRetryCount: ctx.request._ === 'channels.createChannel' ? 0 : ctx.params?.maxRetryCount,
       } }),
       ...networkMiddlewares.basic(),
     ],
   })
   const { client } = connection
+  const groupPeers = new Map<number, tl.RawInputPeerChannel>()
+
+  function rememberGroup(chat: Chat, peer: tl.RawInputPeerChannel): TelegramChatAddress {
+    groupPeers.set(chat.id, peer)
+    return { chatId: chat.id, channelId: peer.channelId }
+  }
+
+  async function inputPeer(source: TelegramChatAddress | null): Promise<'self' | tl.RawInputPeerChannel> {
+    if (!source) return 'self'
+    const cached = groupPeers.get(source.chatId)
+    if (cached) return cached
+    // Access hashes belong to the current Telegram sign-in. Resolve the saved ID again after a new sign-in.
+    for await (const { peer: chat } of client.iterDialogs({ archived: 'keep' })) {
+      if (chat.type !== 'chat' || chat.raw._ !== 'channel' || chat.raw.id !== source.channelId) continue
+      const peer = privateGroupPeer(chat)
+      if (!peer || chat.id !== source.chatId) break
+      rememberGroup(chat, peer)
+      return peer
+    }
+    throw new TelegramError('This subgroup’s private chat is unavailable. Check the group in Telegram.')
+  }
 
   function checkAccount(file: SavedFile) {
     if (file.accountId !== connection.accountId) throw new TelegramError('Reconnect the account that owns this file.')
@@ -80,19 +123,38 @@ export function createSavedSession(apiId: number, apiHash: string) {
     close: connection.close,
     reconnect: connection.reconnect,
 
-    async page(offset?: HistoryOffset) {
+    async createSubgroup(title: string, id: string) {
+      const chat = await client.createSupergroup({ title, description: groupDescription(id) })
+      const peer = privateGroupPeer(chat)
+      if (!peer) throw new TelegramError('Telegram did not confirm a private group. Use Find created chat to check again.')
+      return rememberGroup(chat, peer)
+    },
+
+    async findSubgroup(title: string, id: string) {
+      for await (const { peer: chat } of client.iterDialogs({ archived: 'keep' })) {
+        if (chat.type !== 'chat' || chat.displayName !== title) continue
+        const peer = privateGroupPeer(chat)
+        if (peer && (await client.getFullChat(peer)).bio === groupDescription(id)) return rememberGroup(chat, peer)
+      }
+    },
+
+    async archiveSubgroup(source: TelegramChatAddress) {
+      await client.archiveChats(await inputPeer(source))
+    },
+
+    async page(offset?: HistoryOffset, source: TelegramChatAddress | null = null) {
       const account = connection.accountId
-      const page = await client.getHistory(CHAT, { limit: PAGE_SIZE, offset })
+      const page = await client.getHistory(await inputPeer(source), { limit: PAGE_SIZE, offset })
       const files = page.flatMap((message) => {
-        const file = savedFile(account, message)
+        const file = savedFile(account, message, source)
         return file ? [file] : []
       })
       return { files, next: page.length === PAGE_SIZE ? page.next : undefined }
     },
 
-    async upload(file: File, id: UploadId, signal: AbortSignal, onProgress: (sent: number, total: number) => void) {
+    async upload(file: File, id: UploadId, signal: AbortSignal, onProgress: (sent: number, total: number) => void, source: TelegramChatAddress | null = null) {
       const account = connection.accountId
-      const message = await client.sendMedia(CHAT, InputMedia.document(file, {
+      const message = await client.sendMedia(await inputPeer(source), InputMedia.document(file, {
         fileName: file.name,
         fileMime: file.type || 'application/octet-stream',
       }), {
@@ -100,17 +162,17 @@ export function createSavedSession(apiId: number, apiHash: string) {
         abortSignal: signal,
         progressCallback: onProgress,
       })
-      const confirmed = savedFile(account, message)
-      if (!confirmed) throw new TelegramError('Telegram returned an unexpected message. Refresh Saved Messages before sending again.')
+      const confirmed = savedFile(account, message, source)
+      if (!confirmed) throw new TelegramError('Telegram returned an unexpected message. Refresh the current chat before sending again.')
       return confirmed
     },
 
     async download(file: SavedFile, limit: number, signal: AbortSignal, onProgress: (received: number, total: number) => void) {
       checkAccount(file)
-      const [message] = await client.getMessages(CHAT, [file.messageId])
+      const [message] = await client.getMessages(await inputPeer(file.source), [file.messageId])
       if (signal.aborted) throw signal.reason
-      const current = message && savedFile(file.accountId, message)
-      if (!current) throw new TelegramError('This file is no longer in Saved Messages. Refresh the list.')
+      const current = message && savedFile(file.accountId, message, file.source)
+      if (!current) throw new TelegramError('This file is no longer available in the Telegram chat. Refresh the list.')
       if (current.bytes !== undefined && current.bytes > limit) {
         throw new TelegramError(`This action supports up to ${limit / 1048576} MiB. Open larger files in Telegram.`)
       }

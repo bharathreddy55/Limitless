@@ -2,10 +2,12 @@ import { useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, FileUp, Images, RefreshCw, Send } from 'lucide-react'
 import { FileList, MediaGallery } from '../Gallery'
 import { formatSize, isMedia, type Folder } from '../library'
-import { readTelegramMetadata, patchTelegramMetadata, type TelegramMetadata } from '../storage'
-import { describeFailure } from './connection'
+import { addTelegramSubgroup, readTelegramMetadata, readTelegramSubgroups, patchTelegramMetadata, type TelegramMetadata, type TelegramSubgroup } from '../storage'
+import { describeFailure, TelegramError } from './connection'
 import { createSavedSession, isDuplicateUpload, newUploadId, type HistoryOffset, type SavedFile, type SavedSession, type UploadId } from './saved-client'
 import { SavedDetails, SavedThumbnail } from './SavedDetails'
+import { SubgroupSettings } from './SubgroupSettings'
+import { setUpSubgroup } from './subgroups'
 import './saved.css'
 
 type Challenge =
@@ -35,6 +37,8 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
   const [challenge, setChallenge] = useState<Challenge>()
   const [files, setFiles] = useState<SavedFile[]>([])
   const [metadata, setMetadata] = useState<TelegramMetadata[]>([])
+  const [groups, setGroups] = useState<TelegramSubgroup[]>([])
+  const [sourceId, setSourceId] = useState('')
   const [offset, setOffset] = useState<HistoryOffset>()
   const [job, setJob] = useState<Job>()
   const [selection, setSelection] = useState<string>()
@@ -43,35 +47,45 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
   const [busy, setBusy] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const source = groups.find((group) => group.id === sourceId && group.state === 'archived')
+  const sourceName = source?.name ?? 'Saved Messages'
+  const sourcePeer = source?.state === 'archived' ? source.peer : null
+  const sourceDescription = source?.state === 'archived' ? source.title : 'your Telegram account'
+  const defaultFolderId = source?.albumId ?? null
 
   async function run(label: string, fallback: string, work: () => Promise<void>) {
-    if (pending.current) return
+    if (pending.current) return false
     pending.current = true
     setBusy(label)
     setNotice('')
     setError('')
     try {
       await work()
+      return true
     } catch (reason) {
       setError(rpcFailure(reason, fallback))
+      return false
     } finally {
       pending.current = false
       setBusy('')
     }
   }
 
-  async function refresh(client: SavedSession) {
-    const [page, local] = await Promise.all([client.page(), readTelegramMetadata(client.accountId)])
+  async function refresh(client: SavedSession, nextSource = sourcePeer) {
+    const [page, local] = await Promise.all([client.page(undefined, nextSource), readTelegramMetadata(client.accountId)])
     setFiles(mergeFiles([], page.files))
     setOffset(page.next)
     setMetadata(local)
-    setNotice('Saved Messages refreshed.')
   }
 
   async function onAuthorized(client: SavedSession) {
     setChallenge(undefined)
     setConnected(true)
-    await refresh(client)
+    await Promise.all([
+      refresh(client),
+      readTelegramSubgroups(client.accountId).then(setGroups),
+    ])
+    setNotice('Saved Messages refreshed.')
   }
 
   function requestCode(event: FormEvent<HTMLFormElement>) {
@@ -124,6 +138,8 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
     setChallenge(undefined)
     setFiles([])
     setMetadata([])
+    setGroups([])
+    setSourceId('')
     setOffset(undefined)
     setSelection(undefined)
     setJob(undefined)
@@ -138,10 +154,59 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
   function load(reconnect = false) {
     const client = session.current
     if (!client) return
-    void run(reconnect ? 'Reconnecting…' : 'Refreshing Saved Messages…', 'Could not refresh Saved Messages.', async () => {
+    void run(reconnect ? 'Reconnecting…' : `Refreshing ${sourceName}…`, 'Could not refresh the current Telegram chat.', async () => {
       if (reconnect) await client.reconnect()
       await refresh(client)
-      if (reconnect) setNotice('Reconnected to the same Telegram account. Saved Messages refreshed.')
+      setNotice(`${reconnect ? 'Reconnected to the same Telegram account. ' : ''}${sourceName} refreshed.`)
+    })
+  }
+
+  function changeSource(id: string) {
+    const client = session.current
+    if (!client || job || id === sourceId) return
+    const next = groups.find((group) => group.id === id)
+    if (id && next?.state !== 'archived') return
+    void run('Opening Telegram chat…', 'Could not open this Telegram chat.', async () => {
+      await refresh(client, next?.state === 'archived' ? next.peer : null)
+      setSourceId(id)
+      setSelection(undefined)
+      setSearch('')
+      setFilter('all')
+    })
+  }
+
+  async function addSubgroup(albumId: string, name: string) {
+    const client = session.current
+    if (!client) return false
+    return run('Adding subgroup…', 'Could not add the subgroup on this device.', async () => {
+      if (!name || name.length > 60 || !folders.some((folder) => folder.id === albumId)) {
+        throw new TelegramError('Choose an album and enter a subgroup name of up to 60 characters.')
+      }
+      const group = { id: crypto.randomUUID(), albumId, name, state: 'draft' } as const
+      try {
+        await addTelegramSubgroup(client.accountId, group)
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'ConstraintError') {
+          await readTelegramSubgroups(client.accountId).then(setGroups)
+          throw new TelegramError('This album already has a subgroup with that name.')
+        }
+        throw error
+      }
+      await readTelegramSubgroups(client.accountId).then(setGroups)
+      setNotice('Subgroup added. Create its private Telegram chat when you’re ready.')
+    })
+  }
+
+  function connectSubgroup(folder: Folder, group: TelegramSubgroup) {
+    const client = session.current
+    if (!client) return
+    void run('Setting up Telegram subgroup…', 'Telegram did not confirm setup. Use the action shown next to this subgroup to continue.', async () => {
+      try {
+        await setUpSubgroup(client, folder.name, group)
+      } finally {
+        await readTelegramSubgroups(client.accountId).then(setGroups)
+      }
+      setNotice(`${group.name} is ready in Telegram Archive.`)
     })
   }
 
@@ -149,7 +214,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
     const client = session.current
     if (!client || !offset) return
     void run('Loading older messages…', 'Could not load older messages.', async () => {
-      const page = await client.page(offset)
+      const page = await client.page(offset, sourcePeer)
       setFiles((current) => mergeFiles(current, page.files))
       setOffset(page.next?.id === offset.id && page.next?.date === offset.date ? undefined : page.next)
       if (!page.files.length) setNotice(page.next ? 'No files on this page. You can load the next page.' : 'No more files.')
@@ -158,7 +223,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
 
   function organize(file: SavedFile, values: Partial<Pick<TelegramMetadata, 'folderId' | 'favorite'>>) {
     void run('Saving in Limitless…', 'Could not save this album or favorite change.', async () => {
-      const record = await patchTelegramMetadata(file.accountId, file.messageId, values)
+      const record = await patchTelegramMetadata(file.id, values, defaultFolderId)
       setMetadata((previous) => [...previous.filter((item) => item.id !== record.id), record])
     })
   }
@@ -180,22 +245,22 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
     const controller = new AbortController()
     sendAbort.current = controller
     setJob({ ...job, state: 'sending', progress: 0 })
-    void run('Sending to your Saved Messages…', 'Could not send the file. Retry the same transfer after checking your connection.', async () => {
+    void run(`Sending to ${sourceName}…`, 'Could not send the file. Retry the same transfer after checking your connection.', async () => {
       try {
         const file = await client.upload(job.file, job.id, controller.signal, (sent, total) => {
           if (!controller.signal.aborted && total > 0) {
             setJob((current) => current && { ...current, progress: Math.min(100, Math.floor(sent * 100 / total)) })
           }
-        })
+        }, sourcePeer)
         setFiles((current) => mergeFiles(current, [file]))
         setSearch('')
         setFilter('all')
         setJob({ ...job, state: 'confirmed', progress: 100 })
-        setNotice(`Telegram confirmed ${file.name} in Saved Messages (#${file.messageId}).`)
+        setNotice(`Telegram confirmed ${file.name} in ${sourceName} (#${file.messageId}).`)
       } catch (reason) {
         if (isDuplicateUpload(reason)) {
           setJob({ ...job, state: 'uncertain' })
-          setNotice('Telegram has already seen this upload ID. Refresh Saved Messages to check for the file.')
+          setNotice('Telegram has already seen this upload ID. Refresh the current chat to check for the file.')
         } else if (controller.signal.aborted) {
           setJob({ ...job, state: 'cancelled' })
           setNotice('Transfer cancelled locally. Retry this transfer to reuse its upload ID.')
@@ -211,7 +276,14 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
 
   const client = session.current
   const byId = new Map(metadata.map((item) => [item.id, item]))
-  const items = files.map((file) => ({ ...file, ...byId.get(file.id) }))
+  const archivedByAlbum = new Map<string, TelegramSubgroup[]>()
+  for (const group of groups) {
+    if (group.state !== 'archived') continue
+    const album = archivedByAlbum.get(group.albumId)
+    if (album) album.push(group)
+    else archivedByAlbum.set(group.albumId, [group])
+  }
+  const items = files.map((file) => ({ ...file, folderId: defaultFolderId, ...byId.get(file.id) }))
   const selected = items.find((file) => file.id === selection)
   const term = search.trim().toLocaleLowerCase()
   const visible = items.filter((file) => file.name.toLocaleLowerCase().includes(term) &&
@@ -227,7 +299,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
       <span className="saved-origin"><Send size={15} aria-hidden="true" /> Telegram Production</span>
     </div>
     <div className="page-head saved-heading">
-      <div><h1>Saved Messages</h1><p>{connected ? `${items.length} loaded from your Telegram account` : 'Your Telegram photos, videos, and files in Limitless.'}</p></div>
+      <div><h1>{sourceName}</h1><p>{connected ? `${items.length} loaded from ${sourceDescription}` : 'Your Telegram photos, videos, and files in Limitless.'}</p></div>
       {connected && <div className="saved-actions">
         <button className="button" onClick={() => load()} disabled={Boolean(busy)}><RefreshCw size={17} /> Refresh</button>
         <button className="button" onClick={() => load(true)} disabled={Boolean(busy)}>Reconnect</button>
@@ -256,11 +328,24 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
       <p>Use the app credentials from <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer">Telegram API development tools</a>.</p>
       <div><button className="button primary" disabled={Boolean(busy)}>Request sign-in code</button></div>
     </form> : <>
-      <section className="saved-card saved-transfer" aria-label="Upload to Saved Messages">
+      <SubgroupSettings folders={folders} groups={groups} disabled={Boolean(busy)} onAdd={addSubgroup} onSetUp={connectSubgroup} />
+      {archivedByAlbum.size > 0 && <div className="saved-tools saved-source">
+        <label htmlFor="telegram-chat">Telegram chat</label>
+        <select id="telegram-chat" value={sourceId} disabled={Boolean(busy) || Boolean(job)} onChange={(event) => changeSource(event.currentTarget.value)}>
+          <option value="">Saved Messages</option>
+          {folders.map((folder) => {
+            const archived = archivedByAlbum.get(folder.id)
+            return archived && <optgroup key={folder.id} label={folder.name}>
+              {archived.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </optgroup>
+          })}
+        </select>
+      </div>}
+      <section className="saved-card saved-transfer" aria-label={`Upload to ${sourceName}`}>
         <div>
           <h2>{job?.file.name ?? 'Send a file'}</h2>
           <p>{job ? formatSize(job.file.size) + (job.state === 'sending' && job.progress === 100 ? ' · Waiting for Telegram to confirm' : '')
-            : 'Choose a file to send to your own Saved Messages.'}</p>
+            : `Choose a file to send to ${sourceName}.`}</p>
         </div>
         <input ref={picker} type="file" hidden onChange={(event) => {
           stageFile(event.currentTarget.files?.[0])
@@ -271,7 +356,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
             <progress aria-label="Upload progress" max={100} value={job.progress} />
             <button className="button" onClick={() => sendAbort.current?.abort()}>Cancel upload</button>
           </div> : <div className="saved-actions">
-            {job.state === 'ready' && <button className="button primary" disabled={Boolean(busy)} onClick={sendFile}>Send to Saved Messages</button>}
+            {job.state === 'ready' && <button className="button primary" disabled={Boolean(busy)} onClick={sendFile}>Send to {sourceName}</button>}
             {(job.state === 'failed' || job.state === 'cancelled') && <button className="button primary" disabled={Boolean(busy)} onClick={sendFile}>Retry same transfer</button>}
             <button className="button" disabled={Boolean(busy)} onClick={() => {
               setJob(undefined); setError(''); setNotice('')
@@ -280,7 +365,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
       </section>
 
       <div className="saved-tools">
-        <input type="search" placeholder="Search loaded files" aria-label="Search Saved Messages" value={search} onChange={(event) => setSearch(event.currentTarget.value)} />
+        <input type="search" placeholder="Search loaded files" aria-label={`Search ${sourceName}`} value={search} onChange={(event) => setSearch(event.currentTarget.value)} />
         <label>Show <select value={filter} onChange={(event) => setFilter(event.currentTarget.value)}>
           <option value="all">All files</option><option value="favorites">Favorites</option>
           {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
@@ -300,7 +385,7 @@ export default function SavedMessages({ folders, onBack }: { folders: Folder[]; 
       {offset && <button className="button saved-load" disabled={Boolean(busy)} onClick={loadMore}>Load older messages</button>}
     </>}
 
-    {selected && client && <SavedDetails key={selected.id} file={selected} folders={folders} session={client}
+    {selected && client && <SavedDetails key={selected.id} file={selected} folders={folders} session={client} sourceName={sourceName}
       organizing={Boolean(busy)} organizeError={error} onClose={() => { setSelection(undefined); setError('') }}
       onMove={(folderId) => organize(selected, { folderId })} />}
   </main>

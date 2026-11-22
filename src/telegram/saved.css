@@ -10,7 +10,14 @@
 .saved-auth a { color: var(--accent); }
 .saved-auth label { display: grid; gap: .33rem; font-size: .88rem; font-weight: 630; }
 .saved-credentials { display: grid; gap: .8rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.saved-auth input, .saved-tools input, .saved-tools select { width: 100%; min-width: 0; padding: .63rem .7rem; border: 1px solid var(--line); border-radius: .65rem; color: var(--text); background: var(--page); }
+.saved-auth input, .saved-tools input, .saved-tools select, .saved-subgroup-form input, .saved-subgroup-form select { width: 100%; min-width: 0; padding: .63rem .7rem; border: 1px solid var(--line); border-radius: .65rem; color: var(--text); background: var(--page); }
+.saved-subgroups summary { cursor: pointer; font-weight: 650; }
+.saved-subgroups > p { margin-top: .6rem; }
+.saved-subgroup-form { display: flex; align-items: end; flex-wrap: wrap; gap: .75rem; margin-top: .9rem; }
+.saved-subgroup-form label { display: grid; min-width: 0; gap: .35rem; font-size: .88rem; }
+.saved-subgroup-list { list-style: none; padding: 0; margin: .9rem 0 0; }
+.saved-subgroup-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; border-top: 1px solid var(--line); padding: .65rem 0; overflow-wrap: anywhere; }
+.saved-tools.saved-source { justify-content: flex-start; }
 .saved-transfer { display: flex; align-items: center; justify-content: space-between; gap: .85rem; flex-wrap: wrap; }
 .saved-transfer p { margin-top: .34rem; }
 .saved-progress { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
