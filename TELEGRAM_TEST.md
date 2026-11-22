@@ -71,7 +71,7 @@ The mocked browser workflow passed pagination, download-byte comparison, album a
 
 A mocked browser test passed for one-click creation and archiving across multiple albums and subgroups, duplicate prevention, recovery from interrupted setup, separate upload destinations, matching download bytes, changes loaded on refresh, and reopening a subgroup after a fresh sign-in.
 
-Live verification is pending. Run this only when you want to create real Telegram chats for new subgroups.
+**Live one-click setup passed.** The project owner confirmed that **Add subgroup** in Limitless creates and archives the private chat in Telegram. Live results for steps 2–5 are still pending.
 
 1. In **Telegram subgroups**, choose an existing album, enter a name, and click **Add subgroup**. Wait for the archive confirmation in Limitless, then check that the named private group appears in Telegram’s **Archived Chats**.
 2. Repeat under a different album. Confirm each click creates one archived chat and both appear as separate destinations in Limitless.
