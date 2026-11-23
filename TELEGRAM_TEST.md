@@ -97,7 +97,9 @@ A mocked browser test passed for nested albums, bulk album and tag changes, favo
 
 ## Phase 5 Android app
 
-The debug APK uses package `app.limitless.mobile`. Use the [Android build instructions](README.md#run-the-android-app) to generate it and the separate private setup file. The real-device test of this app is pending.
+**Real-phone test passed.** The project owner confirmed on November 23, 2026 that the Phase 5 Android app worked on a real phone. This is an overall result. Individual device checklist results were not reported.
+
+The debug APK uses package `app.limitless.mobile`. Use the [Android build instructions](README.md#run-the-android-app) to generate it and the separate private setup file.
 
 A local browser test with a simulated Android bridge passed for setup import, resuming a saved sign-in after reload, passing matching file bytes to the save and share actions, and clearing the session on sign-out. The native Android project compiled and assembled the debug APK.
 
