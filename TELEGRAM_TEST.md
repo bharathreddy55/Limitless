@@ -109,6 +109,13 @@ A local browser test with a simulated Android bridge passed for setup import, re
 4. Export an organization backup to Downloads, then choose that file in Limitless and verify the restore preview. Sign out, reopen Limitless, and confirm the app asks for the phone number and code again.
 5. Check the sign-in and file actions with TalkBack. Install an updated APK while keeping the app data and confirm the organization and saved sign-in are available.
 
+## Phase 7 private web beta
+
+1. Open the generated preview URL in a fresh browser without preview access. Vercel should require authorization before serving either the app or the Telegram configuration endpoint.
+2. Open the preview with authorized access. Confirm the country-code and phone-number form loads, then use your own Telegram account to sign in. Verify Saved Messages and one intended subgroup using a disposable file.
+3. Export organization from your existing Limitless address and restore it in the preview with the same account. Verify your subgroup link and file organization. Sign out and confirm the session clears.
+4. Verify that the configuration endpoint denies a production hostname and cross-origin requests. The published assets should contain no Telegram credentials or private setup file.
+
 ## Run the Phase 2 mobile test lab
 
 Build the dedicated test bundle from the repo. It uses the same lab as desktop and keeps its sessions in memory. Capacitor loads the bundle from its local app origin, and the lab checks for a secure cryptography context before showing credential fields. The regular web build stays separate.

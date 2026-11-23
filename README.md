@@ -27,7 +27,7 @@ Pick files with the Android file picker. After downloading a file inside Limitle
 
 ### Use Saved Messages in Limitless
 
-For a local checkout, configure the Telegram application once in an untracked `.env.local` file in the project root. Set `LIMITLESS_TELEGRAM_API_ID` and `LIMITLESS_TELEGRAM_API_HASH` using [Telegram API development tools](https://my.telegram.org/apps), then start or restart the local server. The server provides the configuration to its local browser for the direct Telegram connection. A static deployment needs its own sign-in configuration.
+For a local checkout, configure the Telegram application once in an untracked `.env.local` file in the project root. Set `LIMITLESS_TELEGRAM_API_ID` and `LIMITLESS_TELEGRAM_API_HASH` using [Telegram API development tools](https://my.telegram.org/apps), then start or restart the local server. The server provides the configuration to its local browser for the direct Telegram connection.
 
 Open the main app, choose your country code, and enter your Telegram phone number. Submit the code Telegram sends. If your account has two-step verification, enter your Telegram password when prompted. Limitless opens Saved Messages after sign-in. Select **Local library** to browse your device imports and albums.
 
@@ -54,3 +54,11 @@ When you stage an upload, Limitless flags a possible duplicate if a loaded file 
 Use **Organization backup → Export backup** to save a versioned JSON file containing the connected account’s album assignments, their parent albums, favorites, tags, and subgroup links. Sign in with the same Telegram account to choose and restore it. Restore adds missing records and keeps existing organization. The backup covers organization metadata. Telegram holds the files, and device-only imports need their own copies. Use **Check indexed files in this chat** to see whether any linked attachments are unavailable in Telegram.
 
 New libraries include [sample photos](public/demo/CREDITS.md).
+
+### Private web beta
+
+Publish the beta from a preview branch in the Limitless Vercel project with **Vercel Authentication** enabled. When ready for invited testers, share the protected preview using a Vercel shareable link. Keep the link private. [Vercel shareable links](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/sharable-links)
+
+Set `LIMITLESS_TELEGRAM_API_ID` and `LIMITLESS_TELEGRAM_API_HASH` as sensitive Preview variables, scoped to the beta branch, and redeploy after changing them. Enable Vercel's system environment variables so the sign-in configuration endpoint can verify that it is running on a generated HTTPS preview hostname. The endpoint denies production and custom domains and prevents caching. An invited browser receives the Telegram application configuration at sign-in and connects directly to Telegram for verification and file transfers.
+
+Browser organization is tied to the site address. Export an **Organization backup** from your previous Limitless address and restore it after signing in to the same Telegram account on the beta. See the [private beta checklist](TELEGRAM_TEST.md#phase-7-private-web-beta).

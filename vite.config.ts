@@ -1,10 +1,9 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Connect, type Plugin } from 'vite'
+import { readTelegramConfig } from './server/telegram-config.mjs'
 
 function localTelegramConfig(env: Record<string, string>): Plugin {
-  const apiId = Number(env.LIMITLESS_TELEGRAM_API_ID)
-  const apiHash = env.LIMITLESS_TELEGRAM_API_HASH?.trim()
-  const configured = Number.isInteger(apiId) && apiId > 0 && apiId <= 2_147_483_647 && /^[a-f\d]{32}$/i.test(apiHash ?? '')
+  const config = readTelegramConfig(env)
 
   const serveConfig: Connect.NextHandleFunction = (request, response) => {
     const { host, origin, 'sec-fetch-site': fetchSite } = request.headers
@@ -22,11 +21,11 @@ function localTelegramConfig(env: Record<string, string>): Plugin {
       response.writeHead(405, { Allow: 'GET' }).end()
       return
     }
-    if (!configured) {
+    if (!config) {
       response.writeHead(503).end()
       return
     }
-    response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ apiId, apiHash }))
+    response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(config))
   }
 
   return {
