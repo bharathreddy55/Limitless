@@ -120,6 +120,15 @@ A local browser test with a simulated Android bridge passed for setup import, re
 3. Export organization from your existing Limitless address and restore it in the preview with the same account. Verify your subgroup link and file organization. Sign out and confirm the session clears.
 4. Verify that the configuration endpoint denies a production hostname and cross-origin requests. The published assets should contain no Telegram credentials or private setup file.
 
+## Phase 8 encrypted organization backup
+
+A mocked browser test passed for saving an encrypted copy in Saved Messages, reusing the Telegram upload ID after a lost confirmation, locating the backup through Telegram search, rejecting a wrong passphrase, and restoring organization in a fresh profile. Live verification is pending.
+
+1. With an existing Limitless subgroup and tagged file, choose **Organization backup → Encrypted backup in Telegram → Save new backup**. Enter and confirm a new backup passphrase, then save. Verify Telegram Saved Messages shows an encrypted `.ltx` document.
+2. On another device or in a fresh browser profile, sign in to the same Telegram account. Choose **Load latest backup**. A wrong passphrase should give an error before changing any organization.
+3. Use the correct passphrase, review the backup, and select **Restore backup**. Verify the subgroup link and file’s album, tags, and favorite status. Repeat the restore to check that records written locally remain intact.
+4. If saving is interrupted, choose **Retry encrypted upload**. Verify there is only one Telegram copy for that upload.
+
 ## Run the Phase 2 mobile test lab
 
 Build the dedicated test bundle from the repo. It uses the same lab as desktop and keeps its sessions in memory. Capacitor loads the bundle from its local app origin, and the lab checks for a secure cryptography context before showing credential fields. The regular web build stays separate.

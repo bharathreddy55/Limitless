@@ -21,6 +21,8 @@
 .saved-batch, .saved-backup-preview { display: grid; gap: .75rem; }
 .saved-backup-actions, .saved-inline-form { display: flex; align-items: end; flex-wrap: wrap; gap: .6rem; }
 .saved-backup-actions, .saved-backup-preview { margin-top: .8rem; }
+.saved-encrypted-backup { margin-top: .9rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+.saved-encrypted-backup > p, .saved-encrypted-backup > form, .saved-encrypted-backup > .saved-actions { margin-top: .6rem; }
 .saved-file-input { position: relative; cursor: pointer; }
 .saved-file-input:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .saved-file-input:has(input:disabled) { cursor: default; opacity: .55; }

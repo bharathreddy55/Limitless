@@ -4,7 +4,7 @@ import { TelegramError } from './connection'
 
 const format = 'limitless-telegram-index'
 const version = 1
-const sizeLimit = 16 * 1024 * 1024
+export const indexBackupSizeLimit = 16 * 1024 * 1024
 const idPattern = /^[a-z0-9_-]{1,128}$/i
 
 function invalid(): never {
@@ -124,12 +124,12 @@ export function createIndexBackup(accountId: number, data: TelegramIndexData) {
   // Reading our export through the same schema keeps extra fields out and guarantees it can be restored.
   const contents = readIndex({ ...data, ...header, folders: [...included.values()] }, accountId)
   const blob = new Blob([JSON.stringify({ ...header, ...contents }, null, 2)], { type: 'application/json' })
-  if (blob.size > sizeLimit) throw new TelegramError('This backup exceeds the 16 MiB limit.')
+  if (blob.size > indexBackupSizeLimit) throw new TelegramError('This backup exceeds the 16 MiB limit.')
   return blob
 }
 
-export async function openIndexBackup(file: File, accountId: number) {
-  if (file.size > sizeLimit) throw new TelegramError('This backup exceeds the 16 MiB limit.')
+export async function openIndexBackup(file: Blob, accountId: number) {
+  if (file.size > indexBackupSizeLimit) throw new TelegramError('This backup exceeds the 16 MiB limit.')
   const text = await file.text()
   let value: unknown
   try {

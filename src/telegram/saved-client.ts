@@ -3,6 +3,7 @@ import { createConnection, TelegramError } from './connection'
 import { androidDevice, isAndroidApp } from '../android-device'
 import type { RemoteDisplayFile } from '../library'
 import type { TelegramChatAddress } from '../storage'
+import { encryptedIndexCaption, encryptedIndexFilename, encryptedIndexSizeLimit } from './encrypted-index'
 
 const PAGE_SIZE = 30
 export const downloadLimit = 100 * 1024 * 1024
@@ -39,6 +40,11 @@ export function groupCreationRejected(error: unknown) {
 }
 
 const groupDescription = (id: string) => `Limitless subgroup ${id}`
+
+function isEncryptedIndexMessage(accountId: number, message: Message) {
+  return message.chat.id === accountId && message.text === encryptedIndexCaption &&
+    message.media instanceof RawDocument && message.media.fileName === encryptedIndexFilename
+}
 
 function savedFile(accountId: number, message: Message, source: TelegramChatAddress | null): SavedFile | undefined {
   const media = message.media
@@ -135,6 +141,14 @@ export async function createSavedSession() {
     return new Blob(parts, { type: mime })
   }
 
+  async function sendDocument(file: File, id: UploadId, source: TelegramChatAddress | null, signal: AbortSignal,
+    progressCallback?: (sent: number, total: number) => void, caption?: string) {
+    return client.sendMedia(await inputPeer(source), InputMedia.document(file, {
+      fileName: file.name,
+      fileMime: file.type || 'application/octet-stream',
+    }), { randomId: Long.fromBits(id.low, id.high), abortSignal: signal, progressCallback, caption })
+  }
+
   return {
     requestCode: connection.requestCode,
     submitCode: connection.submitCode,
@@ -164,10 +178,30 @@ export async function createSavedSession() {
       await client.archiveChats(await inputPeer(source))
     },
 
+    async uploadEncryptedIndex(file: File, id: UploadId) {
+      const message = await sendDocument(file, id, null, AbortSignal.timeout(120000), undefined, encryptedIndexCaption)
+      if (!isEncryptedIndexMessage(connection.accountId, message)) {
+        throw new TelegramError('Telegram did not confirm the encrypted backup in Saved Messages.')
+      }
+    },
+
+    async latestEncryptedIndex() {
+      const account = connection.accountId
+      const recent = await client.getHistory('self', { limit: PAGE_SIZE })
+      const stored = recent.find((message) => isEncryptedIndexMessage(account, message)) ??
+        (await client.searchMessages({ chatId: 'self', query: encryptedIndexCaption, filter: { _: 'inputMessagesFilterDocument' }, limit: 100 }))
+          .filter((message) => isEncryptedIndexMessage(account, message)).sort((a, b) => b.id - a.id)[0]
+      if (!stored || !(stored.media instanceof RawDocument)) throw new TelegramError('No encrypted Limitless backup was found in Saved Messages.')
+      const { media } = stored
+      if (media.fileSize !== undefined && media.fileSize > encryptedIndexSizeLimit) throw new TelegramError('The encrypted backup exceeds the size limit.')
+      return downloadWithin(media, 'application/octet-stream', encryptedIndexSizeLimit, AbortSignal.timeout(120000), 30000)
+    },
+
     async page(offset?: HistoryOffset, source: TelegramChatAddress | null = null) {
       const account = connection.accountId
       const page = await client.getHistory(await inputPeer(source), { limit: PAGE_SIZE, offset })
       const files = page.flatMap((message) => {
+        if (!source && isEncryptedIndexMessage(account, message)) return []
         const file = savedFile(account, message, source)
         return file ? [file] : []
       })
@@ -190,14 +224,7 @@ export async function createSavedSession() {
 
     async upload(file: File, id: UploadId, signal: AbortSignal, onProgress: (sent: number, total: number) => void, source: TelegramChatAddress | null = null) {
       const account = connection.accountId
-      const message = await client.sendMedia(await inputPeer(source), InputMedia.document(file, {
-        fileName: file.name,
-        fileMime: file.type || 'application/octet-stream',
-      }), {
-        randomId: Long.fromBits(id.low, id.high),
-        abortSignal: signal,
-        progressCallback: onProgress,
-      })
+      const message = await sendDocument(file, id, source, signal, onProgress)
       const confirmed = savedFile(account, message, source)
       if (!confirmed) throw new TelegramError('Telegram returned an unexpected message. Refresh the current chat before sending again.')
       return confirmed

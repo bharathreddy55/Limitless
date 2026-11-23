@@ -20,11 +20,17 @@
 
 Phase 2 work continues on web and Android. The iOS checks and Phase 6 are deferred until the project owner resumes them. Web beta testing can start once Phase 4 passes.
 
+## Phase 8 encrypted organization backups
+
+The first Phase 8 feature lets a user save an encrypted organization backup to their own Telegram Saved Messages and restore it on another device. The device encrypts confirmed subgroup links, album assignments, tags, and favorites with a separate passphrase. The user controls the Telegram copy and can remove it in Saved Messages. Anyone holding a downloaded copy can decrypt it only with the matching passphrase. The feature uses the existing Telegram connection and requires no new paid service.
+
+The release check is to save a backup, open a fresh browser profile or another device with the same Telegram account, and restore its subgroup links and file organization. Check that a wrong passphrase makes no changes and that retrying an interrupted upload produces one snapshot. Restore keeps any existing organization records on the device.
+
 ## Shared core and mobile behavior
 
 - Share file models, library screens, search, folders, tags, and export/import across platforms. Keep file picking, download destinations, share actions, and session storage behind platform-specific interfaces. [Capacitor setup](https://capacitorjs.com/docs/getting-started)
 - Start with transfers while the app is open. Test switching networks, backgrounding, low disk space, and transfers interrupted by the OS. Show the actual transfer status and provide a safe retry. Set supported file sizes from real device tests.
-- Test index export from web and import on both mobile platforms using the same Telegram account. Automatic sync of app folders and tags is Phase 8 work.
+- Test index export from web and import on mobile with the same Telegram account. Phase 8 adds encrypted copies that users can save to and restore from Telegram.
 - For iOS store review, plan for device features such as importing from Files, saving and sharing downloads, and browsing cached file metadata offline. Apple evaluates apps for utility beyond a repackaged website. [App Review Guidelines, section 4.2](https://developer.apple.com/app-store/review/guidelines/#minimum-functionality)
 
 ## Storage and free-tier limits
@@ -50,4 +56,4 @@ Phase 2 work continues on web and Android. The iOS checks and Phase 6 are deferr
 3. Demonstrate the user workflow and record the checks performed, defects, and known limits in the pull request. For Telegram or storage changes, include a failure or recovery case.
 4. Close the milestone when its acceptance checks pass. Record any scope or budget decision before starting the next phase.
 
-**Current milestone** — [Phase 7 live beta checks](TELEGRAM_TEST.md#phase-7-private-web-beta) passed on the protected Preview for Telegram sign-in, same-account backup restore, a SHA-256-verified subgroup file transfer, and sign-out. The Phase 5 Android debug app passed [real-phone testing](TELEGRAM_TEST.md#phase-5-android-app), and [Phase 4 live index recovery](TELEGRAM_TEST.md#phase-4-organization-and-recovery) passed for same-account restore without duplicates. See the [connected workspace checklist](TELEGRAM_TEST.md#phase-3-connected-workspace) for the remaining Phase 3 checks.
+**Current milestone** — [Phase 8 encrypted organization backup](TELEGRAM_TEST.md#phase-8-encrypted-organization-backup) is implemented. Live cross-device verification is pending. [Phase 7 live beta checks](TELEGRAM_TEST.md#phase-7-private-web-beta) passed on the protected Preview for Telegram sign-in, same-account backup restore, a SHA-256-verified subgroup file transfer, and sign-out. The Phase 5 Android debug app passed [real-phone testing](TELEGRAM_TEST.md#phase-5-android-app), and [Phase 4 live index recovery](TELEGRAM_TEST.md#phase-4-organization-and-recovery) passed for same-account restore without duplicates.

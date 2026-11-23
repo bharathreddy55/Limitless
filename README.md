@@ -53,6 +53,10 @@ When you stage an upload, Limitless flags a possible duplicate if a loaded file 
 
 Use **Organization backup → Export backup** to save a versioned JSON file containing the connected account’s album assignments, their parent albums, favorites, tags, and subgroup links. Sign in with the same Telegram account to choose and restore it. Restore adds missing records and keeps existing organization. The backup covers organization metadata. Telegram holds the files, and device-only imports need their own copies. Use **Check indexed files in this chat** to see whether any linked attachments are unavailable in Telegram.
 
+To move organization between devices without copying a file yourself, open **Organization backup → Encrypted backup in Telegram**. Choose **Save new backup**, enter and confirm a separate backup passphrase, then choose **Save encrypted backup**. Limitless encrypts your organization on this device and adds a copy in Telegram Saved Messages. Keep the passphrase somewhere you can access on your other device. Limitless does not store or recover it.
+
+On the other device, sign in to the same Telegram account, choose **Load latest backup**, and enter the same passphrase. Review the preview, then choose **Restore backup**. Restore adds missing records and keeps local changes. Each save creates a new copy. You can manage copies in Telegram Saved Messages.
+
 New libraries include [sample photos](public/demo/CREDITS.md).
 
 ### Private web beta

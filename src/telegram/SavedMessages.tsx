@@ -13,6 +13,7 @@ import { BatchActions, IndexBackup } from './SavedOrganization'
 import { SubgroupSettings } from './SubgroupSettings'
 import { setUpSubgroup } from './subgroups'
 import { createIndexBackup, openIndexBackup, parseTags } from './index-backup'
+import { checkBackupPassphrase, encryptIndexBackup, openEncryptedIndex } from './encrypted-index'
 import './saved.css'
 
 type Challenge =
@@ -24,6 +25,7 @@ type Job = {
   state: 'ready' | 'sending' | 'failed' | 'cancelled' | 'confirmed' | 'uncertain'
   progress: number
 }
+type EncryptedUpload = Pick<Job, 'file' | 'id'>
 
 const deliveries = { app: 'your signed-in Telegram app', sms: 'SMS', call: 'a phone call', email: 'email' }
 const rpcFailure = (reason: unknown, fallback: string) => describeFailure(reason, fallback, 'production')
@@ -62,6 +64,7 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
   const [selection, setSelection] = useState<string>()
   const [batch, setBatch] = useState<Set<string>>()
   const [backup, setBackup] = useState<TelegramIndexData>()
+  const [encryptedUpload, setEncryptedUpload] = useState<EncryptedUpload>()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [tagFilter, setTagFilter] = useState('')
@@ -232,6 +235,7 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
     setSelection(undefined)
     setBatch(undefined)
     setBackup(undefined)
+    setEncryptedUpload(undefined)
     setJob(undefined)
     setSearch('')
     setFilter('all')
@@ -366,6 +370,47 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
     void run('Checking backup…', 'Could not open this backup.', async () => {
       setBackup(undefined)
       setBackup(await openIndexBackup(file, client.accountId))
+    })
+  }
+
+  async function sendEncrypted(client: SavedSession, upload: EncryptedUpload) {
+    try {
+      await client.uploadEncryptedIndex(upload.file, upload.id)
+      setNotice('Encrypted backup saved in Telegram Saved Messages.')
+    } catch (reason) {
+      if (!isDuplicateUpload(reason)) throw reason
+      setNotice('Telegram already received this upload ID. Load the latest encrypted backup to verify it.')
+    }
+    setEncryptedUpload(undefined)
+  }
+
+  function saveEncrypted(passphrase: string) {
+    const client = session.current
+    if (!client || encryptedUpload) return
+    void run('Encrypting and saving the organization backup…', 'Could not save this encrypted backup. Retry the pending upload if shown.', async () => {
+      const data = await readTelegramIndex(client.accountId)
+      const index = createIndexBackup(client.accountId, { ...data, subgroups: data.subgroups.filter((group) => 'peer' in group) })
+      const upload = { file: await encryptIndexBackup(index, passphrase), id: newUploadId() }
+      setEncryptedUpload(upload)
+      await sendEncrypted(client, upload)
+    })
+  }
+
+  function retryEncrypted() {
+    const client = session.current
+    if (!client || !encryptedUpload) return
+    void run('Retrying the encrypted backup…', 'Could not retry the encrypted backup.', () => sendEncrypted(client, encryptedUpload))
+  }
+
+  function loadEncrypted(passphrase: string) {
+    const client = session.current
+    if (!client) return
+    void run('Loading the encrypted backup from Saved Messages…', 'Could not load the encrypted backup.', async () => {
+      setBackup(undefined)
+      checkBackupPassphrase(passphrase)
+      const encrypted = await client.latestEncryptedIndex()
+      setBackup(await openEncryptedIndex(encrypted, passphrase, client.accountId))
+      setNotice('Backup unlocked. Review its contents before restoring.')
     })
   }
 
@@ -536,7 +581,9 @@ export default function SavedMessages({ folders, onBack, onFoldersRestored }: {
     </form> : <>
       <SubgroupSettings folders={folders} groups={groups} disabled={Boolean(busy)} onAdd={addSubgroup} onRetry={retrySubgroupSetup} />
       <IndexBackup draft={backup} busy={Boolean(busy)} onExport={exportBackup} onChoose={chooseBackup}
-        onRestore={restoreBackup} onCancel={() => setBackup(undefined)} onCheck={checkIndexedFiles} />
+        onRestore={restoreBackup} onCancel={() => setBackup(undefined)} onCheck={checkIndexedFiles} hasRetry={Boolean(encryptedUpload)}
+        onSaveEncrypted={saveEncrypted} onLoadEncrypted={loadEncrypted} onRetryEncrypted={retryEncrypted}
+        onDiscardEncrypted={() => setEncryptedUpload(undefined)} />
       {archivedByAlbum.size > 0 && <div className="saved-tools saved-source">
         <label htmlFor="telegram-chat">Telegram chat</label>
         <select id="telegram-chat" value={sourceId} disabled={Boolean(busy) || Boolean(job)} onChange={(event) => changeSource(event.currentTarget.value)}>
