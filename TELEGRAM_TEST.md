@@ -113,6 +113,8 @@ A local browser test with a simulated Android bridge passed for setup import, re
 
 **Live beta sign-in passed.** The project owner tested the protected Preview for `codex/phase-7-web-beta` after redeploying with branch-scoped Telegram settings. They signed in with the Telegram code and confirmed that Saved Messages opened successfully.
 
+**Live beta backup restore, transfer, and sign-out passed.** The project owner signed in to the protected Preview with the same Telegram account and restored an organization backup. The existing subgroup and tags returned. They uploaded a 64 KiB test file to the restored subgroup, downloaded it through Limitless, and confirmed that sign-out returned to the country-code and phone-number screen. Both copies measured 65,536 bytes and matched SHA-256 `436d4d2110dac086cf3370b77b8b704431a0f35c3a8bd40f74adf4ab02176d77`.
+
 1. Open the generated preview URL in a fresh browser without preview access. Vercel should require authorization before serving either the app or the Telegram configuration endpoint.
 2. Open the preview with authorized access. Confirm the country-code and phone-number form loads, then use your own Telegram account to sign in. Verify Saved Messages and one intended subgroup using a disposable file.
 3. Export organization from your existing Limitless address and restore it in the preview with the same account. Verify your subgroup link and file organization. Sign out and confirm the session clears.
