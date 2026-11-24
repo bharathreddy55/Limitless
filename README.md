@@ -35,6 +35,8 @@ Open the main app, choose your country code, and enter your Telegram phone numbe
 
 Album and favorite changes are saved in this browser for the connected account. The file stays in its original Telegram chat. To download a file, open it, choose **Download**, then **Save file**. Browser downloads are capped at 100 MiB and previews at 16 MiB. Use **Sign out** to end the Telegram session. Closing the tab clears local access.
 
+If a download is interrupted after receiving complete chunks, keep the file details open and choose **Resume download**. Use **Pause download** to stop and keep the received bytes, or **Cancel download** to discard them. Closing the details discards partial data. Before resuming, Limitless confirms that Telegram still has the same attachment.
+
 ### Use private Telegram chats for subgroups
 
 While signed in to Telegram in Limitless, open **Telegram subgroups**, select an existing album, and enter a subgroup name. **Add subgroup** saves the setup in this browser, creates a private group under your Telegram account, and moves it to **Archived Chats**. Its Telegram title uses `Album · Subgroup`. Repeat for as many subgroups as you need, subject to Telegram’s group and rate limits.

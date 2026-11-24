@@ -9,6 +9,8 @@ const PAGE_SIZE = 30
 export const downloadLimit = 100 * 1024 * 1024
 export const previewLimit = 16 * 1024 * 1024
 const thumbnailLimit = 256 * 1024
+const downloadPartKiB = 256
+const downloadPartBytes = downloadPartKiB * 1024
 export type HistoryOffset = { id: number; date: number }
 export type UploadId = { low: number; high: number }
 export type SavedFile = RemoteDisplayFile & {
@@ -17,6 +19,13 @@ export type SavedFile = RemoteDisplayFile & {
   media: RawDocument | Photo
   source: TelegramChatAddress | null
 }
+type DownloadBuffer = { parts: Uint8Array<ArrayBuffer>[]; received: number }
+export type ResumableDownload = {
+  readonly received: number
+  run(signal: AbortSignal, onProgress: (received: number, total: number) => void): Promise<Blob>
+}
+
+const emptyDownload = (): DownloadBuffer => ({ parts: [], received: 0 })
 
 export function newUploadId(): UploadId {
   const [low, high] = crypto.getRandomValues(new Int32Array(2))
@@ -125,20 +134,36 @@ export async function createSavedSession() {
   }
 
   async function downloadWithin(media: FileLocation, mime: string, limit: number, signal: AbortSignal,
-    stallTimeout: number, progressCallback?: (received: number, total: number) => void) {
-    const parts: Uint8Array<ArrayBuffer>[] = []
-    let received = 0
-    // Telegram's partial-download limit has alignment constraints. Bound the iterator instead.
-    for await (const chunk of client.downloadAsIterable(media, { abortSignal: signal, stallTimeout, progressCallback })) {
-      received += chunk.length
-      if (received > limit) throw new TelegramError('This file exceeds the size limit for this action.')
-      parts.push(Uint8Array.from(chunk))
+    stallTimeout: number, onProgress?: (received: number, total: number) => void, checkpoint?: DownloadBuffer) {
+    const buffer = checkpoint ?? emptyDownload()
+    const size = media.fileSize
+    if (size !== undefined && buffer.received) onProgress?.(buffer.received, size)
+    if (size !== buffer.received) {
+      const resume = checkpoint && { offset: buffer.received, partSize: downloadPartKiB }
+      for await (const chunk of client.downloadAsIterable(media, { abortSignal: signal, stallTimeout, ...resume })) {
+        if (signal.aborted) throw signal.reason
+        const received = buffer.received + chunk.length
+        if (received > limit) throw new TelegramError('This file exceeds the size limit for this action.')
+        if (size !== undefined && (received > size || (checkpoint && chunk.length !== Math.min(downloadPartBytes, size - buffer.received)))) {
+          throw new TelegramError('Telegram returned an incomplete file part. Try downloading again.')
+        }
+        buffer.parts.push(Uint8Array.from(chunk))
+        buffer.received = received
+        onProgress?.(received, size ?? Number.NaN)
+      }
     }
     if (signal.aborted) throw signal.reason
-    if (media.fileSize !== undefined && media.fileSize !== received) {
+    if (size !== undefined && size !== buffer.received) {
       throw new TelegramError('The download stopped before the complete file arrived. Try again.')
     }
-    return new Blob(parts, { type: mime })
+    return new Blob(buffer.parts, { type: mime })
+  }
+
+  async function currentFile(file: SavedFile, signal: AbortSignal) {
+    checkAccount(file)
+    const [message] = await client.getMessages(await inputPeer(file.source), [file.messageId])
+    if (signal.aborted) throw signal.reason
+    return message ? savedFile(file.accountId, message, file.source) : undefined
   }
 
   async function sendDocument(file: File, id: UploadId, source: TelegramChatAddress | null, signal: AbortSignal,
@@ -231,15 +256,41 @@ export async function createSavedSession() {
     },
 
     async download(file: SavedFile, limit: number, signal: AbortSignal, onProgress: (received: number, total: number) => void) {
-      checkAccount(file)
-      const [message] = await client.getMessages(await inputPeer(file.source), [file.messageId])
-      if (signal.aborted) throw signal.reason
-      const current = message && savedFile(file.accountId, message, file.source)
+      const current = await currentFile(file, signal)
       if (!current) throw new TelegramError('This file is no longer available in the Telegram chat. Refresh the list.')
       if (current.bytes !== undefined && current.bytes > limit) {
         throw new TelegramError(`This action supports up to ${limit / 1048576} MiB. Open larger files in Telegram.`)
       }
       return downloadWithin(current.media, current.mime, limit, signal, 30000, onProgress)
+    },
+
+    createDownload(file: SavedFile): ResumableDownload {
+      let buffer = emptyDownload()
+      let version: string | undefined
+      return {
+        get received() { return buffer.received },
+        async run(signal, onProgress) {
+          const current = await currentFile(file, signal)
+          if (!current) {
+            buffer = emptyDownload()
+            throw new TelegramError('This file is no longer available in the Telegram chat. Refresh the list.')
+          }
+          const { media, bytes } = current
+          const nextVersion = `${media instanceof Photo ? 'photo' : 'document'}:${media.raw.id}:${bytes}`
+          if (buffer.received && version !== nextVersion) {
+            buffer = emptyDownload()
+            throw new TelegramError('The Telegram attachment changed. The partial download was discarded. Refresh the list before downloading again.')
+          }
+          if (bytes !== undefined && bytes > downloadLimit) {
+            throw new TelegramError('This action supports up to 100 MiB. Open larger files in Telegram.')
+          }
+          version = nextVersion
+          // Only reuse full, aligned parts of an attachment with a known size.
+          const content = await downloadWithin(media, current.mime, downloadLimit, signal, 30000, onProgress, bytes === undefined ? undefined : buffer)
+          buffer = emptyDownload()
+          return content
+        },
+      }
     },
 
     async thumbnail(file: SavedFile, signal: AbortSignal) {

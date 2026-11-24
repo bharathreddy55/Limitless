@@ -26,6 +26,12 @@ The first Phase 8 feature lets a user save an encrypted organization backup to t
 
 The release check is to save a backup, open a fresh browser profile or another device with the same Telegram account, and restore its subgroup links and file organization. Check that a wrong passphrase makes no changes and that retrying an interrupted upload produces one snapshot. Restore keeps any existing organization records on the device.
 
+## Phase 8 resumable downloads
+
+An interrupted or paused download keeps complete chunks in memory while its file details stay open. Only the signed-in account can resume its own download. Closing the details or cancelling discards the partial file. The next request verifies the Telegram attachment's identity and size before reusing those bytes. This uses the existing Telegram connection and requires no new paid service.
+
+The release check is to pause or interrupt a multi-chunk Telegram download, resume from a nonzero offset, and verify the saved file's SHA-256. Also check that cancellation restarts from zero and that replacing the attachment discards cached bytes.
+
 ## Shared core and mobile behavior
 
 - Share file models, library screens, search, folders, tags, and export/import across platforms. Keep file picking, download destinations, share actions, and session storage behind platform-specific interfaces. [Capacitor setup](https://capacitorjs.com/docs/getting-started)
@@ -56,4 +62,4 @@ The release check is to save a backup, open a fresh browser profile or another d
 3. Demonstrate the user workflow and record the checks performed, defects, and known limits in the pull request. For Telegram or storage changes, include a failure or recovery case.
 4. Close the milestone when its acceptance checks pass. Record any scope or budget decision before starting the next phase.
 
-**Current milestone** — [Phase 8 live encrypted backup and restore](TELEGRAM_TEST.md#phase-8-encrypted-organization-backup) passed from the protected web Preview to Android, including rejection of a wrong passphrase. [Phase 7 live beta checks](TELEGRAM_TEST.md#phase-7-private-web-beta) passed on the protected Preview for Telegram sign-in, same-account backup restore, a SHA-256-verified subgroup file transfer, and sign-out. The Phase 5 Android debug app passed [real-phone testing](TELEGRAM_TEST.md#phase-5-android-app), and [Phase 4 live index recovery](TELEGRAM_TEST.md#phase-4-organization-and-recovery) passed for same-account restore without duplicates.
+**Current milestone** — [Phase 8 resumable downloads](TELEGRAM_TEST.md#phase-8-resumable-downloads) are implemented and passed mocked tests. Live Telegram verification is pending. [Phase 8 live encrypted backup and restore](TELEGRAM_TEST.md#phase-8-encrypted-organization-backup) passed from the protected web Preview to Android, including rejection of a wrong passphrase. [Phase 7 live beta checks](TELEGRAM_TEST.md#phase-7-private-web-beta) passed on the protected Preview for Telegram sign-in, same-account backup restore, a SHA-256-verified subgroup file transfer, and sign-out. The Phase 5 Android debug app passed [real-phone testing](TELEGRAM_TEST.md#phase-5-android-app), and [Phase 4 live index recovery](TELEGRAM_TEST.md#phase-4-organization-and-recovery) passed for same-account restore without duplicates.

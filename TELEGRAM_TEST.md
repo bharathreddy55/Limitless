@@ -131,6 +131,15 @@ A mocked browser test passed for saving an encrypted copy in Saved Messages, reu
 3. Use the correct passphrase, review the backup, and select **Restore backup**. Verify the subgroup link and file’s album, tags, and favorite status. Repeat the restore to check that records written locally remain intact.
 4. If saving is interrupted, choose **Retry encrypted upload**. Verify there is only one Telegram copy for that upload.
 
+## Phase 8 resumable downloads
+
+Mocked browser tests passed for pause and timeout recovery from a nonzero offset, an exact match with the original bytes, restart from zero after cancellation or discard, and rejection of a replaced attachment. Real Telegram verification is pending on the protected Preview and Android.
+
+1. Download a disposable file larger than 256 KiB from Saved Messages or a linked subgroup. Pause or interrupt the download once **Pause download** is available. Check that Limitless reports retained bytes.
+2. Restore connectivity if needed. Choose **Resume download**, save the file, and compare its SHA-256 with the original.
+3. Try **Cancel download** or **Discard partial download** before completion. The next attempt should start from zero.
+4. While a download is paused, change the attachment in its Telegram message and attempt to resume. Verify that Limitless discards the partial copy and prompts for a refresh.
+
 ## Run the Phase 2 mobile test lab
 
 Build the dedicated test bundle from the repo. It uses the same lab as desktop and keeps its sessions in memory. Capacitor loads the bundle from its local app origin, and the lab checks for a secure cryptography context before showing credential fields. The regular web build stays separate.

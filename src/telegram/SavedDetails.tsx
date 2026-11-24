@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, FileImage, FolderInput } from 'lucide-react'
 import { DeviceFileActions, FileBadge, Modal, useObjectUrl } from '../components'
 import { isAndroidApp } from '../android-device'
-import { displaySize, fileKind, folderPaths, formatDate, type Folder } from '../library'
+import { displaySize, fileKind, folderPaths, formatDate, formatSize, type Folder } from '../library'
 import { describeFailure } from './connection'
-import { downloadLimit, previewLimit, type SavedFile, type SavedSession } from './saved-client'
+import { downloadLimit, previewLimit, type ResumableDownload, type SavedFile, type SavedSession } from './saved-client'
+
+const pausedDownload = new DOMException('Download paused', 'AbortError')
 
 export function SavedThumbnail({ file, session }: { file: SavedFile; session: SavedSession }) {
   const anchor = useRef<HTMLSpanElement>(null)
@@ -43,37 +45,59 @@ export function SavedDetails({ file, session, folders, sourceName, onMove, onTag
   organizeError: string
 }) {
   const transfer = useRef<AbortController | null>(null)
+  const download = useRef<ResumableDownload | null>(null)
   const [blob, setBlob] = useState<Blob>()
   const [progress, setProgress] = useState<number>()
-  const [active, setActive] = useState(false)
+  const [active, setActive] = useState<'preview' | 'download'>()
+  const [retainedBytes, setRetainedBytes] = useState(0)
+  const [paused, setPaused] = useState(false)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(false)
   const url = useObjectUrl(blob)
   const kind = fileKind(file)
   const previewable = kind === 'image' || kind === 'video' || kind === 'pdf'
 
-  useEffect(() => () => transfer.current?.abort(), [])
+  useEffect(() => () => {
+    download.current = null
+    transfer.current?.abort()
+  }, [])
 
   async function getFile(forPreview: boolean) {
     if (transfer.current) return
     const controller = new AbortController()
     transfer.current = controller
     setError('')
-    setActive(true)
+    setPaused(false)
+    setActive(forPreview ? 'preview' : 'download')
     setProgress(undefined)
     try {
-      const content = await session.download(file, forPreview ? previewLimit : downloadLimit, controller.signal, (done, total) => {
+      const onProgress = (done: number, total: number) => {
         if (Number.isFinite(total) && total > 0) setProgress(Math.min(100, Math.floor(100 * done / total)))
-      })
+        if (!forPreview) setRetainedBytes(download.current?.received ?? 0)
+      }
+      const content = forPreview
+        ? await session.download(file, previewLimit, controller.signal, onProgress)
+        : await (download.current ??= session.createDownload(file)).run(controller.signal, onProgress)
       if (!controller.signal.aborted) {
+        download.current = null
+        setRetainedBytes(0)
         setPreview(forPreview)
         setBlob(content)
       }
     } catch (reason) {
-      setError(controller.signal.aborted ? 'Download cancelled.' : describeFailure(reason, 'Could not download this file. Try again.', 'production'))
+      if (controller.signal.aborted) {
+        if (controller.signal.reason === pausedDownload) setPaused(true)
+        else {
+          download.current = null
+          setError('Download cancelled.')
+        }
+      } else {
+        setError(describeFailure(reason, 'Could not download this file. Try again.', 'production'))
+      }
+      setRetainedBytes(download.current?.received ?? 0)
     } finally {
       transfer.current = null
-      setActive(false)
+      setActive(undefined)
     }
   }
 
@@ -103,17 +127,30 @@ export function SavedDetails({ file, session, folders, sourceName, onMove, onTag
       </form>
       {active && <div className="saved-progress">
         <progress aria-label="Download progress" max={100} value={progress} />
+        {active === 'download' && <button className="button" disabled={!retainedBytes}
+          onClick={() => transfer.current?.abort(pausedDownload)}>Pause download</button>}
         <button className="button" onClick={() => transfer.current?.abort()}>Cancel download</button>
+      </div>}
+      {!active && retainedBytes > 0 && <div className="saved-actions">
+        <p className="file-meta" role="status">{paused && 'Download paused. '}{formatSize(retainedBytes)} ready to resume.</p>
+        <button className="button" onClick={() => {
+          download.current = null
+          setRetainedBytes(0)
+          setPaused(false)
+          setError('')
+        }}>Discard partial download</button>
       </div>}
       {error && <p className="error" role="alert">{error}</p>}
       {organizeError && <p className="error" role="alert">{organizeError}</p>}
       <div className="dialog-actions">
         {file.source && <a className="button" href={`https://t.me/c/${file.source.channelId}/${file.messageId}`}
           target="_blank" rel="noreferrer">Open in Telegram</a>}
-        {previewable && !preview && <button className="button" disabled={active || (file.bytes ?? 0) > previewLimit} onClick={() => void getFile(true)}>Preview</button>}
+        {previewable && !preview && <button className="button" disabled={Boolean(active) || retainedBytes > 0 || (file.bytes ?? 0) > previewLimit} onClick={() => void getFile(true)}>Preview</button>}
         {isAndroidApp && blob ? <DeviceFileActions content={blob} name={file.name} />
           : url ? <a className="button primary" href={url} download={file.name}><Download size={17} /> Save file</a>
-          : <button className="button primary" disabled={active || (file.bytes ?? 0) > downloadLimit} onClick={() => void getFile(false)}><Download size={17} /> Download</button>}
+          : <button className="button primary" disabled={Boolean(active) || (file.bytes ?? 0) > downloadLimit} onClick={() => void getFile(false)}>
+            <Download size={17} /> {retainedBytes > 0 && !active ? 'Resume download' : 'Download'}
+          </button>}
       </div>
       {(file.bytes ?? 0) > downloadLimit && <p className="file-meta">This file is larger than 100 MiB. Download it in Telegram.</p>}
     </div>
