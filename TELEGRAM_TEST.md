@@ -122,7 +122,9 @@ A local browser test with a simulated Android bridge passed for setup import, re
 
 ## Phase 8 encrypted organization backup
 
-A mocked browser test passed for saving an encrypted copy in Saved Messages, reusing the Telegram upload ID after a lost confirmation, locating the backup through Telegram search, rejecting a wrong passphrase, and restoring organization in a fresh profile. Live verification is pending.
+A mocked browser test passed for saving an encrypted copy in Saved Messages, reusing the Telegram upload ID after a lost confirmation, locating the backup through Telegram search, rejecting a wrong passphrase, and restoring organization in a fresh profile.
+
+**Live web-to-Android encrypted backup and restore passed.** On November 24, 2026, the project owner reported saving an encrypted backup from the protected web Preview and opening it on Android with the same Telegram account. The wrong passphrase was rejected and the restore preview stayed closed. With the correct passphrase, the subgroup link and the test file’s album assignment, tags, and favorite status were restored on Android.
 
 1. With an existing Limitless subgroup and tagged file, choose **Organization backup → Encrypted backup in Telegram → Save new backup**. Enter and confirm a new backup passphrase, then save. Verify Telegram Saved Messages shows an encrypted `.ltx` document.
 2. On another device or in a fresh browser profile, sign in to the same Telegram account. Choose **Load latest backup**. A wrong passphrase should give an error before changing any organization.
